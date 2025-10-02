@@ -1,0 +1,131 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "error": "An error occurred",
+    "success": "Operation completed successfully",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "active": "Active",
+    "inactive": "Inactive",
+    "status": "Status",
+    "actions": "Actions",
+    "name": "Name",
+    "type": "Type",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "entities": "Entities",
+    "communication": "Communication",
+    "communications": "Communications",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "metrics": "Metrics",
+    "alerts": "Alerts",
+    "recentActivity": "Recent Activity",
+    "systemHealth": "System Health",
+    "quickActions": "Quick Actions",
+    "communicationCard": "Communication"
+  },
+  "entities": {
+    "title": "Entities",
+    "addEntity": "Add Entity",
+    "entityHierarchy": "Entity Hierarchy",
+    "customer": "Customer",
+    "company": "Company",
+    "group": "Group",
+    "subGroup": "Sub-Group",
+    "identifier": "Identifier",
+    "identifierType": "Identifier Type",
+    "e164": "E164",
+    "cpf": "CPF",
+    "cnpj": "CNPJ",
+    "custom": "Custom",
+    "parent": "Parent",
+    "children": "Children"
+  },
+  "messages": {
+    "title": "Messages",
+    "messageHistory": "Message History",
+    "from": "From",
+    "to": "To",
+    "content": "Content",
+    "timestamp": "Timestamp",
+    "messageType": "Type",
+    "text": "Text",
+    "image": "Image",
+    "document": "Document",
+    "audio": "Audio",
+    "video": "Video",
+    "sent": "Sent",
+    "delivered": "Delivered",
+    "read": "Read",
+    "failed": "Failed"
+  },
+  "alerts": {
+    "accountBlocked": "Account Blocked",
+    "spyMissing": "Spy Number Missing from Group",
+    "healthCheckFailed": "Health Check Failed",
+    "highFailureRate": "High Message Failure Rate",
+    "quotaExceeded": "Message Quota Exceeded",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical",
+    "open": "Open",
+    "acknowledged": "Acknowledged",
+    "resolved": "Resolved"
+  },
+  "onboarding": {
+    "welcome": "Welcome to 2N5!",
+    "subtitle": "Let's get your WhatsApp monitoring system set up",
+    "step1": {
+      "title": "Create Entity Structure",
+      "description": "Set up your organizational hierarchy",
+      "entityName": "Entity Name",
+      "companyName": "Company Name",
+      "departmentName": "Department Name"
+    },
+    "step2": {
+      "title": "Add E164 Users",
+      "description": "Add team members to monitor",
+      "addUser": "Add Another User",
+      "fullName": "Full Name",
+      "email": "Email Address",
+      "e164Number": "E164 Number",
+      "role": "Role"
+    },
+    "step3": {
+      "title": "Send QR Invitations",
+      "description": "Invite users to connect WhatsApp",
+      "sendInvitations": "Send QR code invitations to all users",
+      "invitationMessage": "Invitation Message"
+    },
+    "buttons": {
+      "previous": "Previous",
+      "next": "Next",
+      "complete": "Complete Setup",
+      "skip": "Skip for now",
+      "startGuide": "Start Setup Guide"
+    }
+  }
+}
