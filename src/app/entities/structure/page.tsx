@@ -1,51 +1,92 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useTranslations } from '@/lib/translations';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   PlusIcon,
   BuildingOfficeIcon,
   ChevronRightIcon,
   ChevronDownIcon,
-  PencilIcon,
   TrashIcon,
   UserGroupIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { elasticEntities, e164Users, type ElasticEntity } from '@/data/chatMockData';
+
+interface Entity {
+  _id: string;
+  name: string;
+  type: 'entity' | 'company' | 'department';
+  parentId?: string;
+  level: number;
+  path: string;
+  tenantId: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  children?: Entity[];
+}
 
 interface CreateEntityForm {
   name: string;
-  type: 'company' | 'department';
+  type: 'entity' | 'company' | 'department';
   parentId: string;
+  isRootEntity: boolean;
 }
 
 export default function EntityStructurePage() {
-  const t = useTranslations('entities');
-
-  const [entities, setEntities] = useState<ElasticEntity[]>(elasticEntities);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['entity-x']));
+  const { user } = useAuth();
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<CreateEntityForm>({
     name: '',
-    type: 'company',
-    parentId: 'entity-x'
+    type: 'entity',
+    parentId: '',
+    isRootEntity: true,
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Load entities on mount
+  useEffect(() => {
+    loadEntities();
+  }, []);
+
+  const loadEntities = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+      const data = await api.getEntities();
+      setEntities(data);
+      
+      // Auto-expand root entities
+      const rootEntities = data.filter((e: Entity) => !e.parentId);
+      setExpandedNodes(new Set(rootEntities.map((e: Entity) => e._id)));
+    } catch (err: any) {
+      console.error('Error loading entities:', err);
+      setError(err.message || 'Failed to load entities');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Build hierarchical structure
-  const buildHierarchy = (entities: ElasticEntity[]): ElasticEntity[] => {
-    const entityMap = new Map<string, ElasticEntity>();
-    const rootEntities: ElasticEntity[] = [];
+  const buildHierarchy = (entities: Entity[]): Entity[] => {
+    const entityMap = new Map<string, Entity>();
+    const rootEntities: Entity[] = [];
 
     // Create a map of all entities
     entities.forEach(entity => {
-      entityMap.set(entity.id, { ...entity, children: [] });
+      entityMap.set(entity._id, { ...entity, children: [] });
     });
 
     // Build the hierarchy
     entities.forEach(entity => {
-      const entityWithChildren = entityMap.get(entity.id)!;
+      const entityWithChildren = entityMap.get(entity._id)!;
       if (entity.parentId) {
         const parent = entityMap.get(entity.parentId);
         if (parent) {
@@ -72,90 +113,99 @@ export default function EntityStructurePage() {
     setExpandedNodes(newExpanded);
   };
 
-  const getUserCount = (entityPath: string): number => {
-    return e164Users.filter(user => user.entityPath.includes(entityPath)).length;
-  };
-
   const handleCreateEntity = async () => {
-    if (!createForm.name || !createForm.parentId) {
-      alert('Please fill in all required fields');
+    if (!createForm.name) {
+      setError('Please enter an entity name');
+      return;
+    }
+
+    if (!createForm.isRootEntity && !createForm.parentId) {
+      setError('Please select a parent entity');
+      return;
+    }
+
+    if (!user?.tenantId) {
+      setError('User tenant ID not found');
       return;
     }
 
     setIsCreating(true);
+    setError('');
+    setSuccess('');
 
-    // Find parent entity to build path
-    const parent = entities.find(e => e.id === createForm.parentId);
-    if (!parent) {
-      alert('Parent entity not found');
+    try {
+      const newEntity = await api.createEntity({
+        name: createForm.name,
+        type: createForm.type,
+        parentId: createForm.isRootEntity ? undefined : createForm.parentId,
+        tenantId: user.tenantId,
+      });
+
+      setSuccess(`Entity "${createForm.name}" created successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Auto-expand the parent node
+      if (!createForm.isRootEntity && createForm.parentId) {
+        setExpandedNodes(prev => new Set([...prev, createForm.parentId]));
+      }
+      
+      // Reset form and close modal
+      setCreateForm({
+        name: '',
+        type: 'entity',
+        parentId: '',
+        isRootEntity: true,
+      });
+      setShowCreateModal(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error creating entity:', err);
+      setError(err.message || 'Failed to create entity');
+    } finally {
       setIsCreating(false);
+    }
+  };
+
+  const deleteEntity = async (entityId: string, entityName: string) => {
+    if (!confirm(`Are you sure you want to delete "${entityName}"? This action cannot be undone.`)) {
       return;
     }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const newEntity: ElasticEntity = {
-      id: `entity-${Date.now()}`,
-      name: createForm.name,
-      type: createForm.type,
-      parentId: createForm.parentId,
-      level: parent.level + 1,
-      path: `${parent.path} > ${createForm.name}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      children: []
-    };
-
-    setEntities([...entities, newEntity]);
-    setCreateForm({
-      name: '',
-      type: 'company',
-      parentId: 'entity-x'
-    });
-    setShowCreateModal(false);
-    setIsCreating(false);
-
-    // Auto-expand the parent node
-    setExpandedNodes(prev => new Set([...prev, createForm.parentId]));
-  };
-
-  const deleteEntity = async (entityId: string) => {
-    if (confirm('Are you sure you want to delete this entity? This action cannot be undone.')) {
-      // Check if entity has children
-      const hasChildren = entities.some(e => e.parentId === entityId);
-      if (hasChildren) {
-        alert('Cannot delete entity with sub-entities. Please delete all sub-entities first.');
-        return;
-      }
-
-      // Check if entity has users
-      const entity = entities.find(e => e.id === entityId);
-      if (entity && getUserCount(entity.name) > 0) {
-        alert('Cannot delete entity with assigned users. Please reassign users first.');
-        return;
-      }
-
-      setEntities(entities.filter(e => e.id !== entityId));
+    try {
+      setError('');
+      await api.deleteEntity(entityId);
+      setSuccess(`Entity "${entityName}" deleted successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error deleting entity:', err);
+      setError(err.message || 'Failed to delete entity. It may have children or assigned users.');
     }
   };
 
-  const renderEntity = (entity: ElasticEntity, depth: number = 0) => {
-    const isExpanded = expandedNodes.has(entity.id);
+  const renderEntity = (entity: Entity, depth: number = 0) => {
+    const isExpanded = expandedNodes.has(entity._id);
     const hasChildren = entity.children && entity.children.length > 0;
-    const userCount = getUserCount(entity.name);
 
     return (
-      <div key={entity.id} className="select-none">
+      <div key={entity._id} className="select-none">
         <div
-          className={`flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 ${
+          className={`flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
             depth === 0 ? 'bg-primary-50' : ''
           }`}
           style={{ marginLeft: `${depth * 20}px` }}
         >
           {/* Expand/Collapse Button */}
           <button
-            onClick={() => toggleExpanded(entity.id)}
+            onClick={() => toggleExpanded(entity._id)}
             className="mr-2 p-1 hover:bg-gray-200 rounded"
             disabled={!hasChildren}
           >
@@ -194,29 +244,27 @@ export default function EntityStructurePage() {
               }`}>
                 {entity.type}
               </span>
-              {userCount > 0 && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
-                  {userCount} users
+              {!entity.parentId && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  Root
                 </span>
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              Created: {new Date(entity.createdAt).toLocaleDateString()}
+              Level: {entity.level} • Created: {new Date(entity.createdAt).toLocaleDateString()}
             </div>
           </div>
 
           {/* Actions */}
-          {entity.type !== 'entity' && (
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => deleteEntity(entity.id)}
-                className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete entity"
-              >
-                <TrashIcon className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => deleteEntity(entity._id, entity.name)}
+              className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+              title="Delete entity"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Render Children */}
@@ -237,23 +285,51 @@ export default function EntityStructurePage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Entity Structure</h1>
             <p className="mt-2 text-sm text-gray-700">
-              Manage your elastic entity hierarchy with unlimited nesting levels. Create companies and departments as needed.
+              Manage your elastic entity hierarchy with unlimited nesting levels. Create root entities, companies, and departments.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-          >
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Entity
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadEntities}
+              disabled={isLoading}
+              className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <ArrowPathIcon className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Entity
+            </button>
+          </div>
         </div>
+
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
             <div className="text-2xl font-bold text-primary-600">{entities.length}</div>
             <div className="text-sm text-gray-600">Total Entities</div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {entities.filter(e => !e.parentId).length}
+            </div>
+            <div className="text-sm text-gray-600">Root Entities</div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">
@@ -267,10 +343,6 @@ export default function EntityStructurePage() {
             </div>
             <div className="text-sm text-gray-600">Departments</div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">{e164Users.length}</div>
-            <div className="text-sm text-gray-600">Total Users</div>
-          </div>
         </div>
 
         {/* Entity Tree */}
@@ -279,7 +351,27 @@ export default function EntityStructurePage() {
             <h3 className="text-lg font-semibold text-gray-900">Hierarchical Structure</h3>
           </div>
           <div className="p-6">
-            {hierarchicalEntities.map(entity => renderEntity(entity))}
+            {isLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto mb-2" />
+                Loading entities...
+              </div>
+            ) : hierarchicalEntities.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <BuildingOfficeIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p className="text-lg font-medium">No entities yet</p>
+                <p className="text-sm mt-1">Create your first root entity to get started</p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="mt-4 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Create Root Entity
+                </button>
+              </div>
+            ) : (
+              hierarchicalEntities.map(entity => renderEntity(entity))
+            )}
           </div>
         </div>
 
@@ -288,9 +380,29 @@ export default function EntityStructurePage() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Entity</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {createForm.isRootEntity ? 'Create Root Entity' : 'Add New Entity'}
+                </h3>
                 
                 <div className="space-y-4">
+                  {/* Root Entity Toggle */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isRootEntity"
+                      checked={createForm.isRootEntity}
+                      onChange={(e) => setCreateForm({ 
+                        ...createForm, 
+                        isRootEntity: e.target.checked,
+                        parentId: e.target.checked ? '' : createForm.parentId 
+                      })}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isRootEntity" className="ml-2 block text-sm text-gray-900">
+                      Create as Root Entity (no parent)
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Entity Name *
@@ -300,7 +412,7 @@ export default function EntityStructurePage() {
                       value={createForm.name}
                       onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Company/Department Name"
+                      placeholder="e.g., Entity X, Acme Corp, Sales Dept"
                     />
                   </div>
 
@@ -313,33 +425,39 @@ export default function EntityStructurePage() {
                       onChange={(e) => setCreateForm({ ...createForm, type: e.target.value as any })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
+                      <option value="entity">Entity</option>
                       <option value="company">Company</option>
                       <option value="department">Department</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Parent Entity *
-                    </label>
-                    <select
-                      value={createForm.parentId}
-                      onChange={(e) => setCreateForm({ ...createForm, parentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="entity-x">Entity X (Root)</option>
-                      {entities.filter(e => e.type === 'company').map(entity => (
-                        <option key={entity.id} value={entity.id}>
-                          {entity.name} (Company)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {!createForm.isRootEntity && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parent Entity *
+                      </label>
+                      <select
+                        value={createForm.parentId}
+                        onChange={(e) => setCreateForm({ ...createForm, parentId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">Select parent...</option>
+                        {entities.map(entity => (
+                          <option key={entity._id} value={entity._id}>
+                            {entity.path} ({entity.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end space-x-3 mt-6">
                   <button
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setError('');
+                    }}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
                   >
                     Cancel
@@ -347,9 +465,16 @@ export default function EntityStructurePage() {
                   <button
                     onClick={handleCreateEntity}
                     disabled={isCreating}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center"
                   >
-                    {isCreating ? 'Creating...' : 'Create Entity'}
+                    {isCreating ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Entity'
+                    )}
                   </button>
                 </div>
               </div>

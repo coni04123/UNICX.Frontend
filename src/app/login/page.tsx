@@ -63,40 +63,20 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check demo credentials
-    const validCredential = demoCredentials.find(
-      cred => cred.email === email && cred.password === password
-    );
-
-    if (validCredential) {
-      console.log('Valid credential found:', validCredential);
-      
-      // Use AuthContext login function
-      const userData = {
-        email: validCredential.email,
-        role: validCredential.role,
-        tenant: validCredential.tenant
-      };
-      
-      console.log('Logging in with:', userData);
+    try {
+      await login({ email, password });
       setSuccess('Login successful! Redirecting to dashboard...');
       
-      login(userData);
-      
-      console.log('Redirecting to dashboard...');
-      // Small delay to ensure state is updated
+      // Small delay to show success message
       setTimeout(() => {
         router.push('/');
       }, 500);
-    } else {
-      console.log('Invalid credentials:', { email, password });
-      setError('Invalid email or password. Please use one of the demo credentials below.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleDemoLogin = (credential: typeof demoCredentials[0]) => {
@@ -203,9 +183,12 @@ export default function LoginPage() {
                   )}
                 </Button>
 
-                <div className="text-center">
-                  <a href="#" className="text-sm text-primary hover:text-primary/80">
-                    Forgot your password?
+                <div className="flex items-center justify-between text-sm">
+                  <a href="#" className="text-primary hover:text-primary/80">
+                    Forgot password?
+                  </a>
+                  <a href="/register" className="text-primary hover:text-primary/80">
+                    Create account
                   </a>
                 </div>
               </form>
