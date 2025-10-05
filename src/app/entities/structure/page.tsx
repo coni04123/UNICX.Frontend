@@ -44,7 +44,7 @@ export default function EntityStructurePage() {
     name: '',
     type: 'entity',
     parentId: '',
-    isRootEntity: true,
+    isRootEntity: false,
   });
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +60,9 @@ export default function EntityStructurePage() {
     try {
       setIsLoading(true);
       setError('');
-      const data = await api.getEntities();
+      const data = await api.getEntities({
+        ancestorId: user?.entityId
+      });
       setEntities(data);
       
       // Auto-expand root entities
@@ -70,7 +72,7 @@ export default function EntityStructurePage() {
       console.error('Error loading entities:', err);
       setError(err.message || 'Failed to load entities');
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); 
     }
   };
 
@@ -92,6 +94,8 @@ export default function EntityStructurePage() {
         if (parent) {
           parent.children = parent.children || [];
           parent.children.push(entityWithChildren);
+        } else {
+          rootEntities.push(entityWithChildren);
         }
       } else {
         rootEntities.push(entityWithChildren);
@@ -124,21 +128,15 @@ export default function EntityStructurePage() {
       return;
     }
 
-    if (!user?.tenantId) {
-      setError('User tenant ID not found');
-      return;
-    }
-
     setIsCreating(true);
     setError('');
     setSuccess('');
 
     try {
-      const newEntity = await api.createEntity({
+      await api.createEntity({
         name: createForm.name,
         type: createForm.type,
-        parentId: createForm.isRootEntity ? undefined : createForm.parentId,
-        tenantId: user.tenantId,
+        parentId: createForm.isRootEntity ? undefined : createForm.parentId
       });
 
       setSuccess(`Entity "${createForm.name}" created successfully!`);
@@ -385,23 +383,6 @@ export default function EntityStructurePage() {
                 </h3>
                 
                 <div className="space-y-4">
-                  {/* Root Entity Toggle */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isRootEntity"
-                      checked={createForm.isRootEntity}
-                      onChange={(e) => setCreateForm({ 
-                        ...createForm, 
-                        isRootEntity: e.target.checked,
-                        parentId: e.target.checked ? '' : createForm.parentId 
-                      })}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isRootEntity" className="ml-2 block text-sm text-gray-900">
-                      Create as Root Entity (no parent)
-                    </label>
-                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

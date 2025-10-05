@@ -210,14 +210,18 @@ class ApiClient {
     parentId?: string;
     level?: number;
     search?: string;
+    ancestorId?: string;
   }): Promise<any[]> {
     const params = new URLSearchParams();
     if (filters?.type) params.append('type', filters.type);
     if (filters?.parentId) params.append('parentId', filters.parentId);
     if (filters?.level !== undefined) params.append('level', filters.level.toString());
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.ancestorId) params.append('ancestorId', filters.ancestorId);
     
     const queryString = params.toString();
+    console.log('queryString', queryString);
+    
     return this.get(`/entities${queryString ? `?${queryString}` : ''}`);
   }
 
@@ -234,7 +238,6 @@ class ApiClient {
     name: string;
     type: 'entity' | 'company' | 'department';
     parentId?: string;
-    tenantId: string;
     metadata?: Record<string, any>;
   }): Promise<any> {
     return this.post('/entities', data);
