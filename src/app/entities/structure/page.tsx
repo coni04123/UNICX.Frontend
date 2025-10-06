@@ -12,6 +12,7 @@ import {
   TrashIcon,
   UserGroupIcon,
   ArrowPathIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 
 interface Entity {
@@ -35,24 +36,38 @@ interface CreateEntityForm {
   isRootEntity: boolean;
 }
 
+interface EditEntityForm {
+  _id: string;
+  name: string;
+  type: 'entity' | 'company' | 'department';
+}
+
 export default function EntityStructurePage() {
   const { user } = useAuth();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [createForm, setCreateForm] = useState<CreateEntityForm>({
     name: '',
     type: 'entity',
     parentId: '',
     isRootEntity: false,
   });
+  const [editForm, setEditForm] = useState<EditEntityForm>({
+    _id: '',
+    name: '',
+    type: 'entity',
+  });
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Load entities on mount
   useEffect(() => {
+    console.log('user', user);
     loadEntities();
   }, []);
 
@@ -168,6 +183,54 @@ export default function EntityStructurePage() {
     }
   };
 
+  const openEditModal = (entity: Entity) => {
+    setEditForm({
+      _id: entity._id,
+      name: entity.name,
+      type: entity.type,
+    });
+    setShowEditModal(true);
+    setError('');
+  };
+
+  const handleEditEntity = async () => {
+    if (!editForm.name) {
+      setError('Please enter an entity name');
+      return;
+    }
+
+    setIsEditing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateEntity(editForm._id, {
+        name: editForm.name,
+      });
+
+      setSuccess(`Entity "${editForm.name}" updated successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Reset form and close modal
+      setEditForm({
+        _id: '',
+        name: '',
+        type: 'entity',
+      });
+      setShowEditModal(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error updating entity:', err);
+      setError(err.message || 'Failed to update entity');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   const deleteEntity = async (entityId: string, entityName: string) => {
     if (!confirm(`Are you sure you want to delete "${entityName}"? This action cannot be undone.`)) {
       return;
@@ -187,6 +250,32 @@ export default function EntityStructurePage() {
       console.error('Error deleting entity:', err);
       setError(err.message || 'Failed to delete entity. It may have children or assigned users.');
     }
+  };
+
+  // Check if user can manage an entity (for TenantAdmin)
+  const canManageEntity = (entity: Entity): boolean => {
+    // SystemAdmin can manage all entities
+    if (user?.role === 'SystemAdmin') {
+      return true;
+    }
+
+    // TenantAdmin can only manage entities under their entity hierarchy
+    if (user?.role === 'TenantAdmin') {
+      // User can manage their own entity
+      if (entity._id === user.entityId) {
+        return true;
+      }
+
+      // User can manage entities that have their entityId in the path
+      // This means the entity is under their hierarchy
+      if (entity.path && user.entityPath) {
+        return entity.path.startsWith(user.entityPath + ' >') || entity.path.startsWith(user.entityPath);
+      }
+
+      return false;
+    }
+
+    return false;
   };
 
   const renderEntity = (entity: Entity, depth: number = 0) => {
@@ -255,13 +344,24 @@ export default function EntityStructurePage() {
 
           {/* Actions */}
           <div className="flex items-center space-x-1">
-            <button
-              onClick={() => deleteEntity(entity._id, entity.name)}
-              className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-              title="Delete entity"
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
+            {canManageEntity(entity) && (
+              <>
+                <button
+                  onClick={() => openEditModal(entity)}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit entity name"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => deleteEntity(entity._id, entity.name)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                  title="Delete entity"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -412,6 +512,24 @@ export default function EntityStructurePage() {
                     </select>
                   </div>
 
+                  {user?.role === 'SystemAdmin' && (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={createForm.isRootEntity}
+                        onChange={(e) => setCreateForm({ 
+                          ...createForm, 
+                          isRootEntity: e.target.checked, 
+                          parentId: e.target.checked ? '' : createForm.parentId 
+                        })}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">
+                        Create as Root Entity (no parent)
+                      </label>
+                    </div>
+                  )}
+
                   {!createForm.isRootEntity && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -423,11 +541,13 @@ export default function EntityStructurePage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Select parent...</option>
-                        {entities.map(entity => (
-                          <option key={entity._id} value={entity._id}>
-                            {entity.path} ({entity.type})
-                          </option>
-                        ))}
+                        {entities
+                          .filter(entity => user?.role === 'SystemAdmin' || canManageEntity(entity))
+                          .map(entity => (
+                            <option key={entity._id} value={entity._id}>
+                              {entity.path} ({entity.type})
+                            </option>
+                          ))}
                       </select>
                     </div>
                   )}
@@ -455,6 +575,73 @@ export default function EntityStructurePage() {
                       </>
                     ) : (
                       'Create Entity'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Entity Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Edit Entity
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., Entity X, Acme Corp, Sales Dept"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Type
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.type}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Type cannot be changed after creation</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEditEntity}
+                    disabled={isEditing}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center"
+                  >
+                    {isEditing ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Entity'
                     )}
                   </button>
                 </div>
