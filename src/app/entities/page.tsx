@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslations } from '@/lib/translations';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
@@ -12,10 +12,63 @@ import {
   PlusIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { elasticEntities, e164Users, getRegistrationStats } from '@/data/chatMockData';
+import { api } from '@/lib/api';
+
+interface EntityStats {
+  totalEntities: number;
+  totalUsers: number;
+  byType: Array<{ _id: string; count: number; avgLevel: number }>;
+}
+
+interface UserStats {
+  totalUsers: number;
+  onlineUsers: number;
+  byRegistrationStatus: Array<{ _id: string; count: number }>;
+  byRole: Array<{ _id: string; count: number }>;
+  byWhatsAppStatus: Array<{ _id: string; count: number }>;
+}
 
 export default function EntitiesPage() {
   const t = useTranslations('entities');
+  const [entityStats, setEntityStats] = useState<EntityStats | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const [entityData, userData] = await Promise.all([
+          api.getEntityStats(),
+          api.getUserStats()
+        ]);
+        setEntityStats(entityData);
+        setUserStats(userData);
+      } catch (err: any) {
+        console.error('Error fetching stats:', err);
+        setError(err.message || 'Failed to fetch statistics');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Helper function to get count by status
+  const getStatusCount = (status: string): number => {
+    if (!userStats?.byRegistrationStatus) return 0;
+    const stat = userStats.byRegistrationStatus.find(s => s._id === status);
+    return stat?.count || 0;
+  };
+
+  // Helper function to get WhatsApp connected count
+  const getWhatsAppConnectedCount = (): number => {
+    if (!userStats?.byWhatsAppStatus) return 0;
+    const stat = userStats.byWhatsAppStatus.find(s => s._id === 'connected');
+    return stat?.count || 0;
+  };
 
   const entityOptions = [
     {
@@ -31,7 +84,7 @@ export default function EntitiesPage() {
       ],
       stats: {
         label: 'Total Entities',
-        value: elasticEntities.length
+        value: entityStats?.totalEntities || 0
       }
     },
     {
@@ -47,12 +100,10 @@ export default function EntitiesPage() {
       ],
       stats: {
         label: 'Total Users',
-        value: e164Users.length
+        value: userStats?.totalUsers || 0
       }
     }
   ];
-
-  const quickStats = getRegistrationStats();
 
   return (
     <DashboardLayout>
@@ -65,29 +116,81 @@ export default function EntitiesPage() {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-gray-900">{elasticEntities.length}</div>
-            <div className="text-sm text-gray-600">Total Entities</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-gray-900">{entityStats?.totalEntities || 0}</div>
+                <div className="text-sm text-gray-600">Total Entities</div>
+              </>
+            )}
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{quickStats.registered}</div>
-            <div className="text-sm text-gray-600">Registered Users</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-green-600">{getStatusCount('registered')}</div>
+                <div className="text-sm text-gray-600">Registered Users</div>
+              </>
+            )}
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{quickStats.invited}</div>
-            <div className="text-sm text-gray-600">Invited Users</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-blue-600">{getStatusCount('invited')}</div>
+                <div className="text-sm text-gray-600">Invited Users</div>
+              </>
+            )}
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{quickStats.pending}</div>
-            <div className="text-sm text-gray-600">Pending Users</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-yellow-600">{getStatusCount('pending')}</div>
+                <div className="text-sm text-gray-600">Pending Users</div>
+              </>
+            )}
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {e164Users.filter(u => u.whatsappConnected).length}
-            </div>
-            <div className="text-sm text-gray-600">WhatsApp Connected</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-purple-600">
+                  {getWhatsAppConnectedCount()}
+                </div>
+                <div className="text-sm text-gray-600">WhatsApp Connected</div>
+              </>
+            )}
           </div>
         </div>
 

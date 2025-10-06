@@ -206,6 +206,7 @@ export default function EntityStructurePage() {
     try {
       await api.updateEntity(editForm._id, {
         name: editForm.name,
+        type: editForm.type,
       });
 
       setSuccess(`Entity "${editForm.name}" updated successfully!`);
@@ -418,17 +419,17 @@ export default function EntityStructurePage() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
             <div className="text-2xl font-bold text-primary-600">{entities.length}</div>
             <div className="text-sm text-gray-600">Total Entities</div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          {/* <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">
               {entities.filter(e => !e.parentId).length}
             </div>
             <div className="text-sm text-gray-600">Root Entities</div>
-          </div>
+          </div> */}
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">
               {entities.filter(e => e.type === 'company').length}
@@ -608,15 +609,17 @@ export default function EntityStructurePage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Entity Type
+                      Entity Type *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={editForm.type}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Type cannot be changed after creation</p>
+                      onChange={(e) => setEditForm({ ...editForm, type: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="entity">Entity</option>
+                      <option value="company">Company</option>
+                      <option value="department">Department</option>
+                    </select>
                   </div>
                 </div>
 

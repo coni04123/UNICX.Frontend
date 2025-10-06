@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 export const metadata: Metadata = {
   title: '2N5 - WhatsApp Business Management Platform',
@@ -24,11 +25,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>
-          <OnboardingProvider>
-            {children}
-          </OnboardingProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <OnboardingProvider>
+              {children}
+            </OnboardingProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -6,39 +6,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { 
   EyeIcon, 
   EyeSlashIcon,
   ChatBubbleLeftRightIcon,
   ShieldCheckIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  SparklesIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
-
-// Demo credentials for different user roles
-const demoCredentials = [
-  {
-    email: 'admin@2n5.com',
-    password: 'admin123',
-    role: 'SystemAdmin',
-    tenant: '2N5 Global',
-    description: 'Full system access across all tenants'
-  },
-  {
-    email: 'manager@acme.com',
-    password: 'manager123',
-    role: 'TenantAdmin',
-    tenant: 'ACME Corp',
-    description: 'Manage sub-tenants and E164 users'
-  },
-  {
-    email: 'user@techstart.com',
-    password: 'user123',
-    role: 'User',
-    tenant: 'TechStart Inc',
-    description: 'E164 user with basic access'
-  }
-];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -79,57 +55,73 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = (credential: typeof demoCredentials[0]) => {
-    setEmail(credential.email);
-    setPassword(credential.password);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sage-50 via-background to-pistachio-50 flex">
+    <div className="min-h-screen flex relative overflow-hidden" style={{ backgroundColor: '#FAFAFA' }}>
+      {/* Subtle animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-500/5 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gold-400/5 rounded-full blur-3xl animate-float delay-700" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gray-200/20 rounded-full blur-3xl animate-float delay-1000" />
+      </div>
+
       {/* Left side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
+      <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        <div className="w-full max-w-lg space-y-8">
           {/* Logo and Title */}
           <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
+            <div className="flex items-center justify-center space-x-4 mb-8">
+              <div className="relative group">
+                <div className="w-20 h-20 bg-gradient-brazil rounded-3xl flex items-center justify-center shadow-brazil transform hover:scale-110 transition-all duration-500 hover:shadow-brazil-lg hover:animate-glow">
+                  <ChatBubbleLeftRightIcon className="h-10 w-10 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 animate-bounce">
+                  <div className="w-8 h-8 bg-gradient-gold rounded-full flex items-center justify-center shadow-gold">
+                    <SparklesIcon className="h-4 w-4 text-gray-900" />
+                  </div>
+                </div>
               </div>
-              <span className="text-2xl font-bold text-foreground">2N5</span>
+              <div>
+                <span className="text-5xl font-black text-gradient-premium">
+                  2N5
+                </span>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mt-1">WhatsApp Management</p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
-            <p className="text-muted-foreground mt-2">
-              Sign in to your WhatsApp Business Management Platform
+            <h1 className="text-5xl font-black tracking-tight text-gradient-brazil mb-4">
+              Welcome Back
+            </h1>
+            <p className="text-gray-600 text-xl font-medium">
+              Sign in to your Premium Business Platform
             </p>
           </div>
 
           {/* Login Form */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-xl">Sign in to your account</CardTitle>
-              <CardDescription>
+          <Card className="border-0 shadow-premium bg-white ring-1 ring-gray-100">
+            <CardHeader className="space-y-1 pb-6">
+              <CardTitle className="text-2xl font-bold">Sign in to your account</CardTitle>
+              <CardDescription className="text-base">
                 Enter your credentials to access your dashboard
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-foreground">
-                    Email address
+                  <label htmlFor="email" className="text-sm font-semibold text-foreground flex items-center space-x-1">
+                    <span>Email address</span>
                   </label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full"
+                    className="w-full h-11 text-base border-2 focus:border-primary transition-colors"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  <label htmlFor="password" className="text-sm font-semibold text-foreground">
                     Password
                   </label>
                   <div className="relative">
@@ -140,163 +132,140 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full pr-10"
+                      className="w-full h-11 text-base pr-12 border-2 focus:border-primary transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
                     >
                       {showPassword ? (
-                        <EyeSlashIcon className="h-4 w-4" />
+                        <EyeSlashIcon className="h-5 w-5" />
                       ) : (
-                        <EyeIcon className="h-4 w-4" />
+                        <EyeIcon className="h-5 w-5" />
                       )}
                     </button>
                   </div>
                 </div>
 
                 {error && (
-                  <div className="p-3 text-sm text-error-600 bg-error-50 border border-error-200 rounded-md">
+                  <div className="p-4 text-sm font-medium text-error-700 bg-error-50 border-l-4 border-error-500 rounded-r-md animate-in slide-in-from-left">
                     {error}
                   </div>
                 )}
 
                 {success && (
-                  <div className="p-3 text-sm text-success-600 bg-success-50 border border-success-200 rounded-md">
+                  <div className="p-4 text-sm font-medium text-success-700 bg-success-50 border-l-4 border-success-500 rounded-r-md animate-in slide-in-from-left">
                     {success}
                   </div>
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary/90"
+                  className="w-full h-14 text-lg font-bold bg-gradient-brazil hover:shadow-brazil-lg shadow-brazil transform hover:scale-[1.02] transition-all duration-300 rounded-xl"
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Signing in...</span>
                     </div>
                   ) : (
-                    'Sign in'
+                    <span className="flex items-center space-x-2">
+                      <span>Sign in</span>
+                      <ArrowRightIcon className="h-5 w-5" />
+                    </span>
                   )}
                 </Button>
 
-                <div className="flex items-center justify-between text-sm">
-                  <a href="#" className="text-primary hover:text-primary/80">
+                <div className="text-center pt-3">
+                  <a href="/forgot-password" className="text-primary-600 hover:text-primary-700 font-semibold transition-colors hover:underline">
                     Forgot password?
-                  </a>
-                  <a href="/register" className="text-primary hover:text-primary/80">
-                    Create account
                   </a>
                 </div>
               </form>
             </CardContent>
           </Card>
 
-          {/* Demo Credentials */}
-          <Card className="border border-sage-200 bg-sage-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <ShieldCheckIcon className="h-5 w-5 text-sage-600" />
-                <span>Demo Credentials</span>
-              </CardTitle>
-              <CardDescription>
-                Click on any credential below to auto-fill the login form
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {demoCredentials.map((credential, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleDemoLogin(credential)}
-                  className="p-3 bg-white rounded-lg border border-sage-200 hover:border-sage-300 cursor-pointer transition-colors group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {credential.email}
-                        </span>
-                        <Badge variant="secondary" className="text-xs">
-                          {credential.role}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {credential.tenant} • {credential.description}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono">
-                        Password: {credential.password}
-                      </div>
-                    </div>
-                    <div className="text-sage-400 group-hover:text-sage-600 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          {/* Trust indicators */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-success-50 to-emerald-50 rounded-2xl border border-success-100 shadow-sm">
+              <ShieldCheckIcon className="h-6 w-6 text-success-600" />
+              <span className="text-sm font-semibold text-success-900">Secure Login</span>
+            </div>
+            <div className="flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-primary-50 to-emerald-50 rounded-2xl border border-primary-100 shadow-sm">
+              <GlobeAltIcon className="h-6 w-6 text-primary-600" />
+              <span className="text-sm font-semibold text-primary-900">Global Access</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Right side - Hero Image/Content */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-primary/10 via-sage-100 to-bottle-100 items-center justify-center p-8">
-        <div className="max-w-lg text-center space-y-8">
+      <div className="hidden lg:flex flex-1 bg-white items-center justify-center p-12 relative overflow-hidden">
+        {/* Decorative background patterns */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 right-10 w-40 h-40 border-2 border-primary-400 rounded-full animate-pulse" />
+          <div className="absolute bottom-20 left-20 w-60 h-60 border-2 border-gold-400 rounded-full animate-pulse delay-300" />
+          <div className="absolute top-1/3 left-1/4 w-32 h-32 border-2 border-brazilBlue-800 rounded-full animate-pulse delay-700" />
+          <div className="absolute bottom-1/3 right-1/3 w-48 h-48 border-2 border-gray-300 rounded-full animate-float" />
+        </div>
+
+        <div className="max-w-xl text-center space-y-10 relative z-10">
           {/* Hero Illustration */}
           <div className="relative">
-            <div className="w-80 h-80 mx-auto bg-gradient-to-br from-primary to-sage-500 rounded-full flex items-center justify-center shadow-2xl">
-              <div className="w-64 h-64 bg-white rounded-full flex items-center justify-center">
-                <div className="space-y-4">
-                  <ChatBubbleLeftRightIcon className="h-16 w-16 text-primary mx-auto" />
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse" />
-                    <div className="w-3 h-3 bg-warning-500 rounded-full animate-pulse delay-100" />
-                    <div className="w-3 h-3 bg-info-500 rounded-full animate-pulse delay-200" />
+            <div className="w-96 h-96 mx-auto bg-gradient-premium rounded-full flex items-center justify-center shadow-premium transform hover:scale-105 transition-all duration-700 hover:shadow-premium-lg hover:animate-glow">
+              <div className="w-80 h-80 bg-white rounded-full flex items-center justify-center shadow-2xl">
+                <div className="space-y-8">
+                  <div className="relative">
+                    <ChatBubbleLeftRightIcon className="h-24 w-24 text-primary-600 mx-auto animate-float" />
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-gold rounded-full border-4 border-white shadow-gold animate-pulse" />
+                  </div>
+                  <div className="flex items-center justify-center space-x-4">
+                    <div className="w-5 h-5 bg-primary-500 rounded-full animate-pulse shadow-brazil" />
+                    <div className="w-5 h-5 bg-gold-400 rounded-full animate-pulse delay-100 shadow-gold" />
+                    <div className="w-5 h-5 bg-brazilBlue-800 rounded-full animate-pulse delay-200 shadow-lg" />
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Floating elements */}
-            <div className="absolute -top-4 -left-4 w-8 h-8 bg-sage-400 rounded-full animate-bounce" />
-            <div className="absolute -bottom-4 -right-4 w-6 h-6 bg-pistachio-400 rounded-full animate-bounce delay-300" />
-            <div className="absolute top-1/2 -left-8 w-4 h-4 bg-bottle-400 rounded-full animate-bounce delay-150" />
+            {/* Floating elements with Brazil colors */}
+            <div className="absolute -top-8 -left-8 w-16 h-16 bg-gradient-brazil rounded-3xl animate-bounce shadow-brazil transform rotate-12" />
+            <div className="absolute -bottom-8 -right-8 w-12 h-12 bg-gradient-gold rounded-3xl animate-bounce delay-300 shadow-gold transform -rotate-12" />
+            <div className="absolute top-1/2 -left-12 w-10 h-10 bg-brazilBlue-800 rounded-2xl animate-bounce delay-150 shadow-lg" />
+            <div className="absolute top-1/4 -right-12 w-8 h-8 bg-gradient-to-br from-emerald-500 to-primary-600 rounded-full animate-bounce delay-500 shadow-brazil" />
           </div>
 
           {/* Content */}
-          <div className="space-y-6">
-            <h2 className="text-4xl font-bold text-foreground">
+          <div className="space-y-8">
+            <h2 className="text-6xl font-black text-gradient-premium leading-tight">
               Manage WhatsApp Business at Scale
             </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Streamline your WhatsApp Business communications with our comprehensive 
-              management platform. Monitor spy numbers, manage messages, and handle 
-              multiple accounts with ease.
+            <p className="text-2xl text-gray-700 leading-relaxed font-semibold">
+              Streamline your WhatsApp Business communications with our premium 
+              management platform. Monitor, manage, and optimize with ease.
             </p>
             
-            {/* Features */}
-            <div className="grid grid-cols-1 gap-4 pt-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
-                  <ChatBubbleLeftRightIcon className="h-4 w-4 text-primary" />
+            {/* Features with Brazil-themed design */}
+            <div className="grid grid-cols-1 gap-6 pt-8">
+              <div className="flex items-center space-x-5 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-brazil hover:shadow-brazil-lg transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1">
+                <div className="w-16 h-16 bg-gradient-brazil rounded-2xl flex items-center justify-center shadow-brazil">
+                  <ChatBubbleLeftRightIcon className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-foreground">Multi-account Management</span>
+                <span className="text-gray-900 font-bold text-xl">Multi-account Management</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-sage-400/20 rounded-lg flex items-center justify-center">
-                  <EyeIcon className="h-4 w-4 text-sage-600" />
+              <div className="flex items-center space-x-5 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-gold hover:shadow-gold-lg transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1">
+                <div className="w-16 h-16 bg-gradient-gold rounded-2xl flex items-center justify-center shadow-gold">
+                  <EyeIcon className="h-8 w-8 text-gray-900" />
                 </div>
-                <span className="text-foreground">Spy Number Monitoring</span>
+                <span className="text-gray-900 font-bold text-xl">Spy Number Monitoring</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-bottle-400/20 rounded-lg flex items-center justify-center">
-                  <GlobeAltIcon className="h-4 w-4 text-bottle-600" />
+              <div className="flex items-center space-x-5 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg hover:shadow-premium transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1">
+                <div className="w-16 h-16 bg-brazilBlue-800 rounded-2xl flex items-center justify-center shadow-lg">
+                  <GlobeAltIcon className="h-8 w-8 text-white" />
                 </div>
-                <span className="text-foreground">Global Multi-tenant Support</span>
+                <span className="text-gray-900 font-bold text-xl">Global Multi-tenant Support</span>
               </div>
             </div>
           </div>

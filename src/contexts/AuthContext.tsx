@@ -28,28 +28,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize user state from localStorage immediately
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      const accessToken = localStorage.getItem('access_token');
+      
+      if (storedUser && accessToken) {
+        try {
+          return JSON.parse(storedUser);
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          localStorage.removeItem('user');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+      }
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // Check if user is logged in on app start
-    const storedUser = localStorage.getItem('user');
-    const accessToken = localStorage.getItem('access_token');
-    
-    if (storedUser && accessToken) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-      }
-    }
+    // Set loading to false after initial mount
     setIsLoading(false);
   }, []);
 

@@ -167,6 +167,20 @@ class ApiClient {
     }
   }
 
+  async forgotPassword(data: { email: string }): Promise<{ message: string; resetToken?: string }> {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resetPassword(data: { token: string; newPassword: string }): Promise<{ message: string }> {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async refreshAccessToken(): Promise<{ access_token: string }> {
     if (!this.refreshToken) {
       throw new Error('No refresh token available');
@@ -261,6 +275,104 @@ class ApiClient {
 
   async getEntityStats(): Promise<any> {
     return this.get('/entities/stats');
+  }
+
+  // User Management APIs
+  async getUsers(filters?: {
+    registrationStatus?: string;
+    role?: string;
+    entityId?: string;
+    whatsappConnectionStatus?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ users: any[], total: number, page: number, limit: number, totalPages: number }> {
+    const params = new URLSearchParams();
+    if (filters?.registrationStatus) params.append('registrationStatus', filters.registrationStatus);
+    if (filters?.role) params.append('role', filters.role);
+    if (filters?.entityId) params.append('entityId', filters.entityId);
+    if (filters?.whatsappConnectionStatus) params.append('whatsappConnectionStatus', filters.whatsappConnectionStatus);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    
+    const queryString = params.toString();
+    return this.get(`/users${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getUser(id: string): Promise<any> {
+    return this.get(`/users/${id}`);
+  }
+
+  async createUser(data: {
+    phoneNumber: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+    entityId: string;
+    tenantId: string;
+    role?: string;
+  }): Promise<any> {
+    return this.post('/users', data);
+  }
+
+  async inviteUser(data: {
+    phoneNumber: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    entityId: string;
+    tenantId: string;
+    role?: string;
+  }): Promise<any> {
+    return this.post('/users/invite', data);
+  }
+
+  async bulkInviteUsers(data: {
+    users: Array<{
+      phoneNumber: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      entityId: string;
+      role?: string;
+    }>;
+    tenantId: string;
+  }): Promise<any> {
+    return this.post('/users/bulk-invite', data);
+  }
+
+  async updateUser(id: string, data: {
+    phoneNumber?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    entityId?: string;
+    role?: string;
+    password?: string;
+  }): Promise<any> {
+    return this.patch(`/users/${id}`, data);
+  }
+
+  async updateUserRegistrationStatus(id: string, status: string): Promise<any> {
+    return this.patch(`/users/${id}/registration-status`, { status });
+  }
+
+  async updateUserWhatsAppStatus(id: string, status: string): Promise<any> {
+    return this.patch(`/users/${id}/whatsapp-status`, { status });
+  }
+
+  async deleteUser(id: string): Promise<any> {
+    return this.delete(`/users/${id}`);
+  }
+
+  async getUserStats(): Promise<any> {
+    return this.get('/users/stats');
+  }
+
+  async searchUsers(query: string): Promise<any[]> {
+    return this.get(`/users/search?q=${encodeURIComponent(query)}`);
   }
 }
 

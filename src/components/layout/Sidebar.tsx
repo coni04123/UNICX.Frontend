@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTranslations } from '@/lib/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PermissionGate } from '@/components/PermissionGate';
 import {
@@ -41,7 +41,7 @@ interface NavigationItem {
 }
 
 export default function Sidebar() {
-  const t = useTranslations('navigation');
+  const t = useTranslation('navigation');
   const pathname = usePathname();
   const { canAccessRoute } = usePermissions();
 
