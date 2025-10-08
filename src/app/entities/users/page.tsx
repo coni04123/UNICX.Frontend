@@ -157,6 +157,7 @@ export default function UserManagementPage() {
       if (statusFilter) filters.registrationStatus = statusFilter;
       if (roleFilter) filters.role = roleFilter;
       if (entityFilter) filters.entityId = entityFilter;
+      else filters.entityId = currentUser?.entityId;
       if (whatsappFilter) filters.whatsappConnectionStatus = whatsappFilter;
       if (searchQuery) filters.search = searchQuery;
 

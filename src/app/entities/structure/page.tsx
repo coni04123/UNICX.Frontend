@@ -52,7 +52,7 @@ export default function EntityStructurePage() {
     name: '',
     type: 'entity',
     parentId: '',
-    isRootEntity: false,
+    isRootEntity: true,
   });
   const [editForm, setEditForm] = useState<EditEntityForm>({
     _id: '',
@@ -181,6 +181,28 @@ export default function EntityStructurePage() {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const openCreateChildModal = (parentEntity: Entity) => {
+    setCreateForm({
+      name: '',
+      type: 'entity',
+      parentId: parentEntity._id,
+      isRootEntity: false,
+    });
+    setShowCreateModal(true);
+    setError('');
+  };
+
+  const openCreateRootModal = () => {
+    setCreateForm({
+      name: '',
+      type: 'entity',
+      parentId: '',
+      isRootEntity: true,
+    });
+    setShowCreateModal(true);
+    setError('');
   };
 
   const openEditModal = (entity: Entity) => {
@@ -348,6 +370,13 @@ export default function EntityStructurePage() {
             {canManageEntity(entity) && (
               <>
                 <button
+                  onClick={() => openCreateChildModal(entity)}
+                  className="p-1.5 text-gray-400 hover:text-green-600 transition-colors"
+                  title="Add child entity"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => openEditModal(entity)}
                   className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                   title="Edit entity name"
@@ -397,11 +426,11 @@ export default function EntityStructurePage() {
               Refresh
             </button>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreateRootModal}
               className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
             >
               <PlusIcon className="w-4 h-4 mr-2" />
-              Add Entity
+              Add Root Entity
             </button>
           </div>
         </div>
@@ -461,7 +490,7 @@ export default function EntityStructurePage() {
                 <p className="text-lg font-medium">No entities yet</p>
                 <p className="text-sm mt-1">Create your first root entity to get started</p>
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={openCreateRootModal}
                   className="mt-4 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
                   <PlusIcon className="w-4 h-4 mr-2" />
@@ -480,7 +509,7 @@ export default function EntityStructurePage() {
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  {createForm.isRootEntity ? 'Create Root Entity' : 'Add New Entity'}
+                  {createForm.isRootEntity ? 'Create Root Entity' : 'Add Child Entity'}
                 </h3>
                 
                 <div className="space-y-4">
@@ -513,43 +542,14 @@ export default function EntityStructurePage() {
                     </select>
                   </div>
 
-                  {user?.role === 'SystemAdmin' && (
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={createForm.isRootEntity}
-                        onChange={(e) => setCreateForm({ 
-                          ...createForm, 
-                          isRootEntity: e.target.checked, 
-                          parentId: e.target.checked ? '' : createForm.parentId 
-                        })}
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                      />
-                      <label className="ml-2 text-sm text-gray-700">
-                        Create as Root Entity (no parent)
-                      </label>
-                    </div>
-                  )}
-
                   {!createForm.isRootEntity && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Parent Entity *
+                        Parent Entity
                       </label>
-                      <select
-                        value={createForm.parentId}
-                        onChange={(e) => setCreateForm({ ...createForm, parentId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        <option value="">Select parent...</option>
-                        {entities
-                          .filter(entity => user?.role === 'SystemAdmin' || canManageEntity(entity))
-                          .map(entity => (
-                            <option key={entity._id} value={entity._id}>
-                              {entity.path} ({entity.type})
-                            </option>
-                          ))}
-                      </select>
+                      <div className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+                        {entities.find(e => e._id === createForm.parentId)?.name || 'Unknown'}
+                      </div>
                     </div>
                   )}
                 </div>
