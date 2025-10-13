@@ -448,13 +448,13 @@ export default function UserManagementPage() {
               <EnvelopeIcon className="w-4 h-4 mr-2" />
               Invite User
             </button>
-          <button
+          {/* <button
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
           >
             <PlusIcon className="w-4 h-4 mr-2" />
               Create User
-          </button>
+          </button> */}
             </div>
           </div>
 
