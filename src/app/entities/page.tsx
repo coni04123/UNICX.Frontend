@@ -1,373 +1,666 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useTranslations } from '@/lib/translations';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import Link from 'next/link';
-import {
-  BuildingOfficeIcon,
-  UsersIcon,
-  ChartBarIcon,
-  ArrowRightIcon,
-  PlusIcon,
-  UserGroupIcon,
-} from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import {
+  PlusIcon,
+  BuildingOfficeIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  TrashIcon,
+  UserGroupIcon,
+  ArrowPathIcon,
+  PencilIcon,
+} from '@heroicons/react/24/outline';
 
-interface EntityStats {
-  totalEntities: number;
-  totalUsers: number;
-  byType: Array<{ _id: string; count: number; avgLevel: number }>;
+interface Entity {
+  _id: string;
+  name: string;
+  type: 'entity' | 'company' | 'department';
+  parentId?: string;
+  level: number;
+  path: string;
+  tenantId: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  children?: Entity[];
 }
 
-interface UserStats {
-  totalUsers: number;
-  onlineUsers: number;
-  byRegistrationStatus: Array<{ _id: string; count: number }>;
-  byRole: Array<{ _id: string; count: number }>;
-  byWhatsAppStatus: Array<{ _id: string; count: number }>;
+interface CreateEntityForm {
+  name: string;
+  type: 'entity' | 'company' | 'department';
+  parentId: string;
+  isRootEntity: boolean;
 }
 
-export default function EntitiesPage() {
-  const t = useTranslations('entities');
-  const [entityStats, setEntityStats] = useState<EntityStats | null>(null);
-  const [userStats, setUserStats] = useState<UserStats | null>(null);
+interface EditEntityForm {
+  _id: string;
+  name: string;
+  type: 'entity' | 'company' | 'department';
+}
+
+export default function EntityStructurePage() {
+  const { user } = useAuth();
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateEntityForm>({
+    name: '',
+    type: 'entity',
+    parentId: '',
+    isRootEntity: true,
+  });
+  const [editForm, setEditForm] = useState<EditEntityForm>({
+    _id: '',
+    name: '',
+    type: 'entity',
+  });
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
+  // Load entities on mount
   useEffect(() => {
-    const fetchStats = async () => {
+    console.log('user', user);
+    loadEntities();
+  }, []);
+
+  const loadEntities = async () => {
       try {
         setIsLoading(true);
-        const [entityData, userData] = await Promise.all([
-          api.getEntityStats(),
-          api.getUserStats()
-        ]);
-        setEntityStats(entityData);
-        setUserStats(userData);
+      setError('');
+      const data = await api.getEntities({
+        ancestorId: user?.entityId
+      });
+      setEntities(data);
+      
+      // Auto-expand root entities
+      const rootEntities = data.filter((e: Entity) => !e.parentId);
+      setExpandedNodes(new Set(rootEntities.map((e: Entity) => e._id)));
       } catch (err: any) {
-        console.error('Error fetching stats:', err);
-        setError(err.message || 'Failed to fetch statistics');
+      console.error('Error loading entities:', err);
+      setError(err.message || 'Failed to load entities');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
-  }, []);
+  // Build hierarchical structure
+  const buildHierarchy = (entities: Entity[]): Entity[] => {
+    const entityMap = new Map<string, Entity>();
+    const rootEntities: Entity[] = [];
 
-  // Helper function to get count by status
-  const getStatusCount = (status: string): number => {
-    if (!userStats?.byRegistrationStatus) return 0;
-    const stat = userStats.byRegistrationStatus.find(s => s._id === status);
-    return stat?.count || 0;
+    // Create a map of all entities
+    entities.forEach(entity => {
+      entityMap.set(entity._id, { ...entity, children: [] });
+    });
+
+    // Build the hierarchy
+    entities.forEach(entity => {
+      const entityWithChildren = entityMap.get(entity._id)!;
+      if (entity.parentId) {
+        const parent = entityMap.get(entity.parentId);
+        if (parent) {
+          parent.children = parent.children || [];
+          parent.children.push(entityWithChildren);
+        } else {
+          rootEntities.push(entityWithChildren);
+        }
+      } else {
+        rootEntities.push(entityWithChildren);
+      }
+    });
+
+    return rootEntities;
   };
 
-  // Helper function to get WhatsApp connected count
-  const getWhatsAppConnectedCount = (): number => {
-    if (!userStats?.byWhatsAppStatus) return 0;
-    const stat = userStats.byWhatsAppStatus.find(s => s._id === 'connected');
-    return stat?.count || 0;
-  };
+  const hierarchicalEntities = buildHierarchy(entities);
 
-  const entityOptions = [
-    {
-      title: 'Entity Structure',
-      description: 'Manage your elastic entity hierarchy with unlimited nesting levels',
-      href: '/entities/structure',
-      icon: BuildingOfficeIcon,
-      features: [
-        'Create companies and departments',
-        'Unlimited nesting levels',
-        'Visual tree organization',
-        'Path-based navigation'
-      ],
-      stats: {
-        label: 'Total Entities',
-        value: entityStats?.totalEntities || 0
-      }
-    },
-    {
-      title: 'User Management',
-      description: 'Complete E164 user management with registration monitoring and QR invitations',
-      href: '/entities/users',
-      icon: UsersIcon,
-      features: [
-        'Create & manage E164 users',
-        'Send QR code invitations',
-        'Registration status tracking',
-        'WhatsApp connection monitoring'
-      ],
-      stats: {
-        label: 'Total Users',
-        value: userStats?.totalUsers || 0
-      }
+  const toggleExpanded = (entityId: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(entityId)) {
+      newExpanded.delete(entityId);
+    } else {
+      newExpanded.add(entityId);
     }
-  ];
+    setExpandedNodes(newExpanded);
+  };
+
+  const handleCreateEntity = async () => {
+    if (!createForm.name) {
+      setError('Please enter an entity name');
+      return;
+    }
+
+    if (!createForm.isRootEntity && !createForm.parentId) {
+      setError('Please select a parent entity');
+      return;
+    }
+
+    setIsCreating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.createEntity({
+        name: createForm.name,
+        type: createForm.type,
+        parentId: createForm.isRootEntity ? undefined : createForm.parentId
+      });
+
+      setSuccess(`Entity "${createForm.name}" created successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Auto-expand the parent node
+      if (!createForm.isRootEntity && createForm.parentId) {
+        setExpandedNodes(prev => new Set([...prev, createForm.parentId]));
+      }
+      
+      // Reset form and close modal
+      setCreateForm({
+        name: '',
+        type: 'entity',
+        parentId: '',
+        isRootEntity: true,
+      });
+      setShowCreateModal(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error creating entity:', err);
+      setError(err.message || 'Failed to create entity');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openCreateChildModal = (parentEntity: Entity) => {
+    setCreateForm({
+      name: '',
+      type: 'entity',
+      parentId: parentEntity._id,
+      isRootEntity: false,
+    });
+    setShowCreateModal(true);
+    setError('');
+  };
+
+  const openCreateRootModal = () => {
+    setCreateForm({
+      name: '',
+      type: 'entity',
+      parentId: '',
+      isRootEntity: true,
+    });
+    setShowCreateModal(true);
+    setError('');
+  };
+
+  const openEditModal = (entity: Entity) => {
+    setEditForm({
+      _id: entity._id,
+      name: entity.name,
+      type: entity.type,
+    });
+    setShowEditModal(true);
+    setError('');
+  };
+
+  const handleEditEntity = async () => {
+    if (!editForm.name) {
+      setError('Please enter an entity name');
+      return;
+    }
+
+    setIsEditing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateEntity(editForm._id, {
+        name: editForm.name,
+        type: editForm.type,
+      });
+
+      setSuccess(`Entity "${editForm.name}" updated successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Reset form and close modal
+      setEditForm({
+        _id: '',
+        name: '',
+        type: 'entity',
+      });
+      setShowEditModal(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error updating entity:', err);
+      setError(err.message || 'Failed to update entity');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const deleteEntity = async (entityId: string, entityName: string) => {
+    if (!confirm(`Are you sure you want to delete "${entityName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError('');
+      await api.deleteEntity(entityId);
+      setSuccess(`Entity "${entityName}" deleted successfully!`);
+      
+      // Reload entities
+      await loadEntities();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error deleting entity:', err);
+      setError(err.message || 'Failed to delete entity. It may have children or assigned users.');
+    }
+  };
+
+  // Check if user can manage an entity (for TenantAdmin)
+  const canManageEntity = (entity: Entity): boolean => {
+    // SystemAdmin can manage all entities
+    if (user?.role === 'SystemAdmin') {
+      return true;
+    }
+
+    // TenantAdmin can only manage entities under their entity hierarchy
+    if (user?.role === 'TenantAdmin') {
+      // User can manage their own entity
+      if (entity._id === user.entityId) {
+        return true;
+      }
+
+      // User can manage entities that have their entityId in the path
+      // This means the entity is under their hierarchy
+      if (entity.path && user.entityPath) {
+        return entity.path.startsWith(user.entityPath + ' >') || entity.path.startsWith(user.entityPath);
+      }
+
+      return false;
+    }
+
+    return false;
+  };
+
+  const renderEntity = (entity: Entity, depth: number = 0) => {
+    const isExpanded = expandedNodes.has(entity._id);
+    const hasChildren = entity.children && entity.children.length > 0;
+
+    return (
+      <div key={entity._id} className="select-none">
+        <div
+          className={`flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
+            depth === 0 ? 'bg-primary-50' : ''
+          }`}
+          style={{ marginLeft: `${depth * 20}px` }}
+        >
+          {/* Expand/Collapse Button */}
+          <button
+            onClick={() => toggleExpanded(entity._id)}
+            className="mr-2 p-1 hover:bg-gray-200 rounded"
+            disabled={!hasChildren}
+          >
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDownIcon className="w-4 h-4 text-gray-600" />
+              ) : (
+                <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+              )
+            ) : (
+              <div className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Entity Icon */}
+          <div className="mr-3">
+            {entity.type === 'entity' ? (
+              <BuildingOfficeIcon className="w-5 h-5 text-primary-600" />
+            ) : entity.type === 'company' ? (
+              <BuildingOfficeIcon className="w-5 h-5 text-blue-600" />
+            ) : (
+              <UserGroupIcon className="w-5 h-5 text-green-600" />
+            )}
+          </div>
+
+          {/* Entity Info */}
+          <div className="flex-1">
+            <div className="flex items-center space-x-2">
+              <span className="font-medium text-gray-900">{entity.name}</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                entity.type === 'entity' 
+                  ? 'bg-primary-100 text-primary-700'
+                  : entity.type === 'company'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-green-100 text-green-700'
+              }`}>
+                {entity.type}
+              </span>
+              {!entity.parentId && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  Root
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Level: {entity.level} • Created: {new Date(entity.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-1">
+            {canManageEntity(entity) && (
+              <>
+                <button
+                  onClick={() => openCreateChildModal(entity)}
+                  className="p-1.5 text-gray-400 hover:text-green-600 transition-colors"
+                  title="Add child entity"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => openEditModal(entity)}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit entity name"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => deleteEntity(entity._id, entity.name)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                  title="Delete entity"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Render Children */}
+        {isExpanded && hasChildren && (
+          <div>
+            {entity.children?.map(child => renderEntity(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
+        <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Entity Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Entity Structure</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Manage your elastic entity structure and E164 users. Create unlimited levels of organization.
-          </p>
+              Manage your elastic entity hierarchy with unlimited nesting levels. Create root entities, companies, and departments.
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadEntities}
+              disabled={isLoading}
+              className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <ArrowPathIcon className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={openCreateRootModal}
+              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Root Entity
+            </button>
+          </div>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600">{error}</p>
+        {/* Success Message - Only show success on background, errors show in modals */}
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
+            {success}
           </div>
         )}
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            {isLoading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+            <div className="text-2xl font-bold text-primary-600">{entities.length}</div>
+            <div className="text-sm text-gray-600">Total Entities</div>
               </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-gray-900">{entityStats?.totalEntities || 0}</div>
-                <div className="text-sm text-gray-600">Total Entities</div>
-              </>
-            )}
+          {/* <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {entities.filter(e => !e.parentId).length}
+          </div>
+            <div className="text-sm text-gray-600">Root Entities</div>
+          </div> */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {entities.filter(e => e.type === 'company').length}
+              </div>
+            <div className="text-sm text-gray-600">Companies</div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            {isLoading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+            <div className="text-2xl font-bold text-green-600">
+              {entities.filter(e => e.type === 'department').length}
               </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-green-600">{getStatusCount('registered')}</div>
-                <div className="text-sm text-gray-600">Registered Users</div>
-              </>
-            )}
+            <div className="text-sm text-gray-600">Departments</div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            {isLoading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
               </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-blue-600">{getStatusCount('invited')}</div>
-                <div className="text-sm text-gray-600">Invited Users</div>
-              </>
-            )}
+
+        {/* Entity Tree */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Hierarchical Structure</h3>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+          <div className="p-6">
             {isLoading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
+              <div className="text-center py-8 text-gray-500">
+                <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto mb-2" />
+                Loading entities...
+              </div>
+            ) : hierarchicalEntities.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <BuildingOfficeIcon className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <p className="text-lg font-medium">No entities yet</p>
+                <p className="text-sm mt-1">Create your first root entity to get started</p>
+                <button
+                  onClick={openCreateRootModal}
+                  className="mt-4 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                >
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Create Root Entity
+                </button>
               </div>
             ) : (
-              <>
-                <div className="text-2xl font-bold text-yellow-600">{getStatusCount('pending')}</div>
-                <div className="text-sm text-gray-600">Pending Users</div>
-              </>
-            )}
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-            {isLoading ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-24 mx-auto"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-purple-600">
-                  {getWhatsAppConnectedCount()}
-                </div>
-                <div className="text-sm text-gray-600">WhatsApp Connected</div>
-              </>
+              hierarchicalEntities.map(entity => renderEntity(entity))
             )}
           </div>
         </div>
 
-        {/* Entity Management Options */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {entityOptions.map((option) => {
-            const IconComponent = option.icon;
-            
-            return (
-              <div key={option.title} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                          <IconComponent className="w-6 h-6 text-primary-600" />
+        {/* Create Entity Modal */}
+        {showCreateModal && (
+          <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-screen w-screen z-[9999] flex items-start justify-center pt-20">
+            <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white mb-20">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {createForm.isRootEntity ? 'Create Root Entity' : 'Add Child Entity'}
+                </h3>
+                
+                {/* Error message inside modal */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                    {error}
                         </div>
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {option.title}
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-primary-600">
-                        {option.stats.value}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {option.stats.label}
-                      </div>
-                    </div>
+                )}
+                
+                <div className="space-y-4">
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., Entity X, Acme Corp, Sales Dept"
+                    />
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-4">
-                    {option.description}
-                  </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Type *
+                    </label>
+                    <select
+                      value={createForm.type}
+                      onChange={(e) => setCreateForm({ ...createForm, type: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="entity">Entity</option>
+                      <option value="company">Company</option>
+                      <option value="department">Department</option>
+                    </select>
+        </div>
 
-                  {/* Features */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">Key Features:</h4>
-                    <ul className="space-y-2">
-                      {option.features.map((feature, index) => (
-                        <li key={index} className="flex items-center text-sm text-gray-600">
-                          <div className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-3"></div>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  {!createForm.isRootEntity && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parent Entity
+                      </label>
+                      <div className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+                        {entities.find(e => e._id === createForm.parentId)?.name || 'Unknown'}
+                </div>
+              </div>
+                  )}
+            </div>
 
-                  {/* Action Button */}
-                  <Link
-                    href={option.href}
-                    className="inline-flex items-center w-full justify-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 transition-colors"
+                <div className="flex items-center justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
                   >
-                    Open {option.title}
-                    <ArrowRightIcon className="ml-2 w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Entity Structure Preview */}
-        {/* <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Entity Structure Overview</h3>
-          <div className="space-y-3">
-            <div className="flex items-center text-sm">
-              <BuildingOfficeIcon className="w-4 h-4 text-gray-400 mr-2" />
-              <span className="font-medium text-gray-900">Entity X</span>
-              <span className="ml-2 text-gray-500">(Root Entity)</span>
-            </div>
-            <div className="ml-6 space-y-2">
-              <div className="flex items-center text-sm">
-                <BuildingOfficeIcon className="w-4 h-4 text-blue-400 mr-2" />
-                <span className="font-medium text-gray-900">Company C1</span>
-                <span className="ml-2 text-gray-500">
-                  ({e164Users.filter(u => u.entityPath.includes('Company C1')).length} users)
-                </span>
-              </div>
-              <div className="ml-6 space-y-1">
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Sales Department ({e164Users.filter(u => u.entityPath.includes('Sales Department')).length} users)
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Marketing Department ({e164Users.filter(u => u.entityPath.includes('Marketing Department')).length} users)
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  IT Department ({e164Users.filter(u => u.entityPath.includes('IT Department')).length} users)
-                </div>
-              </div>
-            </div>
-            <div className="ml-6 space-y-2">
-              <div className="flex items-center text-sm">
-                <BuildingOfficeIcon className="w-4 h-4 text-blue-400 mr-2" />
-                <span className="font-medium text-gray-900">Company C2</span>
-                <span className="ml-2 text-gray-500">
-                  ({e164Users.filter(u => u.entityPath.includes('Company C2')).length} users)
-                </span>
-              </div>
-              <div className="ml-6 space-y-1">
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Operations Department ({e164Users.filter(u => u.entityPath.includes('Operations Department')).length} users)
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Finance Department ({e164Users.filter(u => u.entityPath.includes('Finance Department')).length} users)
-                </div>
-              </div>
-            </div>
-            <div className="ml-6 space-y-2">
-              <div className="flex items-center text-sm">
-                <BuildingOfficeIcon className="w-4 h-4 text-blue-400 mr-2" />
-                <span className="font-medium text-gray-900">Company C3</span>
-                <span className="ml-2 text-gray-500">
-                  ({e164Users.filter(u => u.entityPath.includes('Company C3')).length} users)
-                </span>
-              </div>
-              <div className="ml-6 space-y-1">
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Human Resources ({e164Users.filter(u => u.entityPath.includes('Human Resources')).length} users)
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <UserGroupIcon className="w-3 h-3 text-gray-400 mr-2" />
-                  Legal Department ({e164Users.filter(u => u.entityPath.includes('Legal Department')).length} users)
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateEntity}
+                    disabled={isCreating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center"
+                  >
+                    {isCreating ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Entity'
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </div> */}
+        )}
 
-        {/* Getting Started Guide */}
-        <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-primary-900 mb-4">How to Get Started</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                1
+        {/* Edit Entity Modal */}
+        {showEditModal && (
+          <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-screen w-screen z-[9999] flex items-start justify-center pt-20">
+            <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white mb-20">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Edit Entity
+                </h3>
+                
+                {/* Error message inside modal */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                    {error}
               </div>
+                )}
+                
+                <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-primary-900">Create Entity Structure</h4>
-                <p className="text-sm text-primary-700 mt-1">
-                  Set up your companies and departments using the elastic structure system.
-                </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="e.g., Entity X, Acme Corp, Sales Dept"
+                    />
+              </div>
+
+              <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Entity Type *
+                    </label>
+                    <select
+                      value={editForm.type}
+                      onChange={(e) => setEditForm({ ...editForm, type: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="entity">Entity</option>
+                      <option value="company">Company</option>
+                      <option value="department">Department</option>
+                    </select>
               </div>
             </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                2
-              </div>
-              <div>
-                <h4 className="font-medium text-primary-900">Create E164 Users</h4>
-                <p className="text-sm text-primary-700 mt-1">
-                  Add users with their E164 phone numbers and assign them to departments.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                3
-              </div>
-              <div>
-                <h4 className="font-medium text-primary-900">Send QR Invitations</h4>
-                <p className="text-sm text-primary-700 mt-1">
-                  Send email invitations with QR codes for users to connect their WhatsApp accounts.
-                </p>
+
+                <div className="flex items-center justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEditEntity}
+                    disabled={isEditing}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center"
+                  >
+                    {isEditing ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Entity'
+                    )}
+                  </button>
               </div>
             </div>
           </div>
         </div>
+        )}
       </div>
     </DashboardLayout>
   );

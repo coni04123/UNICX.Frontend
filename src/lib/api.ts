@@ -374,6 +374,67 @@ class ApiClient {
   async searchUsers(query: string): Promise<any[]> {
     return this.get(`/users/search?q=${encodeURIComponent(query)}`);
   }
+
+  // WhatsApp APIs
+  async createWhatsAppSession(): Promise<any> {
+    return this.post('/whatsapp/sessions', {});
+  }
+
+  async getWhatsAppQRCode(sessionId: string): Promise<any> {
+    return this.get(`/whatsapp/sessions/${sessionId}/qr`);
+  }
+
+  async getWhatsAppSessionStatus(sessionId: string): Promise<any> {
+    return this.get(`/whatsapp/sessions/${sessionId}/status`);
+  }
+
+  async disconnectWhatsAppSession(sessionId: string): Promise<any> {
+    return this.delete(`/whatsapp/sessions/${sessionId}`);
+  }
+
+  async sendWhatsAppMessage(sessionId: string, to: string, message: string): Promise<any> {
+    return this.post('/whatsapp/messages/send', { sessionId, to, message });
+  }
+
+  async getWhatsAppMessages(filters?: {
+    page?: number;
+    limit?: number;
+    direction?: string;
+    status?: string;
+    type?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    conversationId?: string;
+  }): Promise<{
+    messages: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.direction) params.append('direction', filters.direction);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.from) params.append('from', filters.from);
+    if (filters?.to) params.append('to', filters.to);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.conversationId) params.append('conversationId', filters.conversationId);
+
+    const queryString = params.toString();
+    return this.get(`/whatsapp/messages${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getWhatsAppConversations(): Promise<any[]> {
+    return this.get('/whatsapp/conversations');
+  }
 }
 
 // Export a singleton instance

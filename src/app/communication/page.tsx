@@ -1,22 +1,69 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslations } from '@/lib/translations';
+import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   FunnelIcon,
   ArrowDownTrayIcon,
   ChevronRightIcon,
+  ChevronLeftIcon,
   ChevronDownIcon,
   BuildingOfficeIcon,
   UsersIcon,
   MapPinIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { whatsappMessages, e164Users, elasticEntities, type FilterOptions, type ElasticEntity } from '@/data/chatMockData';
+import { api } from '@/lib/api';
+import { Message, MessageDirection, MessageStatus, MessageType } from '@/types/messages';
+import { Entity } from '@/types/entities';
+
+interface ElasticEntity {
+  id: string;
+  name: string;
+  type: string;
+  path: string;
+  parentId?: string;
+  children?: ElasticEntity[];
+}
+
+interface FilterOptions {
+  entityUserNumber?: string;
+  entityPath?: string;
+  e164Number?: string;
+  timeRange?: {
+    type: 'last_hours' | 'last_days' | 'date_range';
+    value?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+  messageType?: MessageType | 'all';
+  direction?: MessageDirection | 'both';
+  registrationStatus?: string;
+}
 
 export default function CommunicationPage() {
   const t = useTranslations('messages');
   const tCommon = useTranslations('common');
+  const { user: currentUser } = useAuth();
+  
+  // Loading states
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [isLoadingEntities, setIsLoadingEntities] = useState(true);
+  const [error, setError] = useState('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalMessages, setTotalMessages] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // Data
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [allE164Numbers, setAllE164Numbers] = useState<Set<string>>(new Set());
   
   // WhatsApp monitoring filters
   const [whatsappFilters, setWhatsappFilters] = useState<FilterOptions>({
@@ -30,18 +77,116 @@ export default function CommunicationPage() {
   });
   const [showWhatsAppFilters, setShowWhatsAppFilters] = useState(false);
 
-  // Additional state for enhanced filtering
-  const [allE164Numbers, setAllE164Numbers] = useState<Set<string>>(new Set());
+  // Load messages
+  useEffect(() => {
+    loadMessages();
+  }, [currentPage, pageSize, whatsappFilters]);
 
-  // Extract all unique E164 numbers from messages (registered and unregistered)
-  React.useEffect(() => {
-    const numbersSet = new Set<string>();
-    whatsappMessages.forEach(message => {
-      numbersSet.add(message.senderE164);
-      numbersSet.add(message.receiverE164);
-    });
-    setAllE164Numbers(numbersSet);
+  // Load entities and users
+  useEffect(() => {
+    loadEntities();
+    loadUsers();
   }, []);
+
+  const loadMessages = async () => {
+    try {
+      setIsLoadingMessages(true);
+      setError('');
+
+      // Build filters
+      const filters: any = {
+        page: currentPage,
+        limit: pageSize,
+      };
+
+      if (whatsappFilters.direction && whatsappFilters.direction !== 'both') {
+        filters.direction = whatsappFilters.direction;
+      }
+
+      if (whatsappFilters.messageType && whatsappFilters.messageType !== 'all') {
+        filters.type = whatsappFilters.messageType;
+      }
+
+      if (whatsappFilters.e164Number) {
+        filters.search = whatsappFilters.e164Number;
+      }
+
+      if (whatsappFilters.entityUserNumber) {
+        filters.from = whatsappFilters.entityUserNumber;
+      }
+
+      if (whatsappFilters.timeRange) {
+        if (whatsappFilters.timeRange.type === 'date_range') {
+          if (whatsappFilters.timeRange.startDate) {
+            filters.startDate = whatsappFilters.timeRange.startDate;
+          }
+          if (whatsappFilters.timeRange.endDate) {
+            filters.endDate = whatsappFilters.timeRange.endDate;
+          }
+        } else if (whatsappFilters.timeRange.value) {
+          const now = new Date();
+          if (whatsappFilters.timeRange.type === 'last_hours') {
+            filters.startDate = new Date(now.getTime() - (whatsappFilters.timeRange.value * 60 * 60 * 1000)).toISOString();
+          } else {
+            filters.startDate = new Date(now.getTime() - (whatsappFilters.timeRange.value * 24 * 60 * 60 * 1000)).toISOString();
+          }
+          filters.endDate = now.toISOString();
+        }
+      }
+
+      const data = await api.getWhatsAppMessages(filters);
+      setMessages(data.messages);
+      setTotalMessages(data.total);
+      setTotalPages(data.totalPages);
+      setCurrentPage(data.page);
+
+      // Update E164 numbers set
+      const numbersSet = new Set<string>();
+      data.messages.forEach(message => {
+        numbersSet.add(message.from);
+        numbersSet.add(message.to);
+      });
+      setAllE164Numbers(numbersSet);
+
+    } catch (err: any) {
+      console.error('Error loading messages:', err);
+      setError(err.message || 'Failed to load messages');
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  const loadEntities = async () => {
+    try {
+      setIsLoadingEntities(true);
+      setError('');
+
+      // Only fetch entities under user's entityId for non-system admins
+      const data = await api.getEntities({
+        ancestorId: currentUser?.role === 'SystemAdmin' ? undefined : currentUser?.entityId
+      });
+      setEntities(data);
+
+      // Auto-expand root entities
+      const rootEntities = data.filter((e: Entity) => !e.parentId);
+      setExpandedNodes(new Set(rootEntities.map((e: Entity) => e._id)));
+
+    } catch (err: any) {
+      console.error('Error loading entities:', err);
+      setError(err.message || 'Failed to load entities');
+    } finally {
+      setIsLoadingEntities(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await api.getUsers();
+      setUsers(data.users);
+    } catch (err: any) {
+      console.error('Error loading users:', err);
+    }
+  };
 
   // Elastic structure navigation state
   const [selectedEntityPath, setSelectedEntityPath] = useState<string>('');
@@ -76,10 +221,10 @@ export default function CommunicationPage() {
 
   const getEntityIcon = (type: string) => {
     switch (type) {
-      case 'entity': return '🏢';
-      case 'company': return '🏬';
-      case 'department': return '📋';
-      default: return '📁';
+      case 'entity': return 'bi-building';
+      case 'company': return 'bi-building-fill';
+      case 'department': return 'bi-folder2-open';
+      default: return 'bi-folder';
     }
   };
 
@@ -98,15 +243,24 @@ export default function CommunicationPage() {
     setWhatsappFilters(prev => ({ ...prev, entityPath: path }));
   };
 
+  // Convert entities to elastic format
+  const elasticEntities = entities.map(entity => ({
+    id: entity._id,
+    name: entity.name,
+    type: entity.type,
+    path: entity.path,
+    parentId: entity.parentId,
+  }));
+
   const entityTree = buildEntityTree(elasticEntities);
 
   // Get users in selected entity path
   const usersInSelectedPath = selectedEntityPath 
-    ? e164Users.filter(user => user.entityPath === selectedEntityPath || user.entityPath.startsWith(selectedEntityPath + ' >'))
-    : e164Users;
+    ? users.filter((user: any) => user.entityPath === selectedEntityPath || user.entityPath.startsWith(selectedEntityPath + ' >'))
+    : users;
 
   // Filter WhatsApp messages with advanced filters including selected entity path
-  const filteredWhatsAppMessages = whatsappMessages.filter((message) => {
+  const filteredWhatsAppMessages = messages.filter((message: Message) => {
     // Entity User Number filter
     const matchesEntityUser = !whatsappFilters.entityUserNumber || 
       message.senderE164 === whatsappFilters.entityUserNumber || 
@@ -122,13 +276,13 @@ export default function CommunicationPage() {
 
     // Enhanced E164 Number filter (supports registered and unregistered numbers)
     const matchesE164 = !whatsappFilters.e164Number || 
-      message.senderE164.includes(whatsappFilters.e164Number) || 
-      message.receiverE164.includes(whatsappFilters.e164Number);
+      (message.senderE164 && message.senderE164.includes(whatsappFilters.e164Number)) || 
+      (message.receiverE164 && message.receiverE164.includes(whatsappFilters.e164Number));
 
     // Enhanced Time range filter with support for date ranges
     let matchesTimeRange = true;
     if (whatsappFilters.timeRange) {
-      const msgDate = new Date(message.timestamp);
+      const msgDate = new Date(message.timestamp || message.sentAt);
       const now = new Date();
 
       if (whatsappFilters.timeRange.type === 'last_hours' && whatsappFilters.timeRange.value) {
@@ -169,8 +323,8 @@ export default function CommunicationPage() {
     // Registration status filter
     let matchesRegistration = true;
     if (whatsappFilters.registrationStatus && whatsappFilters.registrationStatus !== 'all') {
-      const senderUser = e164Users.find(u => u.e164Number === message.senderE164);
-      const receiverUser = e164Users.find(u => u.e164Number === message.receiverE164);
+      const senderUser = users.find((u: any) => u.phoneNumber === message.from);
+      const receiverUser = users.find((u: any) => u.phoneNumber === message.to);
       
       if (whatsappFilters.registrationStatus === 'registered') {
         matchesRegistration = senderUser !== undefined || receiverUser !== undefined;
@@ -183,18 +337,18 @@ export default function CommunicationPage() {
 
     return matchesEntityUser && matchesEntityPath && 
            matchesE164 && matchesTimeRange && matchesType && matchesDirection && matchesRegistration;
-  }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }).sort((a, b) => new Date(b.timestamp || b.sentAt).getTime() - new Date(a.timestamp || a.sentAt).getTime());
 
   // Render elastic structure tree
   const renderEntityNode = (entity: ElasticEntity, level: number = 0) => {
     const isExpanded = expandedNodes.has(entity.id);
     const hasChildren = entity.children && entity.children.length > 0;
     const isSelected = selectedEntityPath === entity.path;
-    const messageCount = whatsappMessages.filter(msg => 
+    const messageCount = messages.filter((msg: Message) => 
       msg.entityPath === entity.path || 
       (msg.entityPath && msg.entityPath.startsWith(entity.path + ' >'))
     ).length;
-    const userCount = e164Users.filter(user => 
+    const userCount = users.filter((user: any) => 
       user.entityPath === entity.path || 
       user.entityPath.startsWith(entity.path + ' >')
     ).length;
@@ -227,7 +381,7 @@ export default function CommunicationPage() {
           )}
           {!hasChildren && <div className="w-5 mr-2" />}
           
-          <span className="mr-2 text-sm">{getEntityIcon(entity.type)}</span>
+          <i className={`bi ${getEntityIcon(entity.type)} mr-2 text-gray-600`}></i>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
@@ -349,7 +503,7 @@ export default function CommunicationPage() {
                     }`}
                     onClick={() => selectEntityPath('')}
                   >
-                    <span className="mr-2 text-sm">🌐</span>
+                    <i className="bi bi-globe mr-2 text-gray-600"></i>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className={`text-sm font-medium ${!selectedEntityPath ? 'text-primary-900' : 'text-gray-900'}`}>
@@ -358,7 +512,7 @@ export default function CommunicationPage() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           !selectedEntityPath ? 'bg-primary-200 text-primary-800' : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {whatsappMessages.length}
+                          {messages.length}
                         </span>
                       </div>
                     </div>
@@ -597,16 +751,19 @@ export default function CommunicationPage() {
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-600 text-lg">📱</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <i className="bi bi-whatsapp text-white text-2xl"></i>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">WhatsApp Messages</h3>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">WhatsApp Messages</h3>
+                      <p className="text-sm text-gray-500">Real-time communication history</p>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-4">
                     <div className="text-sm text-gray-600">
                       <span className="font-medium">{filteredWhatsAppMessages.length}</span> messages
-                      {filteredWhatsAppMessages.length !== whatsappMessages.length && (
-                        <span className="text-gray-500"> of {whatsappMessages.length}</span>
+                      {filteredWhatsAppMessages.length !== messages.length && (
+                        <span className="text-gray-500"> of {messages.length}</span>
                       )}
                     </div>
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -614,30 +771,39 @@ export default function CommunicationPage() {
                 </div>
               </div>
               <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                {filteredWhatsAppMessages.length === 0 ? (
+                {isLoadingMessages ? (
+                  <div className="px-6 py-8 text-center text-gray-500">
+                    <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto mb-2 text-primary-600" />
+                    <p>Loading messages...</p>
+                  </div>
+                ) : error ? (
+                  <div className="px-6 py-8 text-center text-red-500">
+                    <p>{error}</p>
+                  </div>
+                ) : messages.length === 0 ? (
                   <div className="px-6 py-8 text-center text-gray-500">
                     No WhatsApp messages found matching your criteria.
                   </div>
                 ) : (
-                  filteredWhatsAppMessages.map((message) => {
-                    const senderInfo = e164Users.find(u => u.e164Number === message.senderE164);
-                    const receiverInfo = e164Users.find(u => u.e164Number === message.receiverE164);
+                  messages.map((message) => {
+                    const senderInfo = users.find(u => u.phoneNumber === message.from);
+                    const receiverInfo = users.find(u => u.phoneNumber === message.to);
                     
                     return (
-                      <div key={message.id} className="px-6 py-4 hover:bg-gray-50/50 transition-colors duration-150">
+                      <div key={message._id} className="px-6 py-4 hover:bg-gray-50/50 transition-colors duration-150">
                         <div className="flex items-start space-x-4">
                           {/* Direction Indicator */}
                           <div className="flex-shrink-0 pt-1">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              message.direction === 'outbound' 
+                              message.direction === MessageDirection.OUTBOUND 
                                 ? 'bg-blue-50 border border-blue-200' 
                                 : 'bg-green-50 border border-green-200'
                             }`}>
-                              <span className={`text-sm ${
-                                message.direction === 'outbound' ? 'text-blue-600' : 'text-green-600'
-                              }`}>
-                                {message.direction === 'outbound' ? '↗️' : '↙️'}
-                              </span>
+                              <i className={`bi ${
+                                message.direction === MessageDirection.OUTBOUND 
+                                  ? 'bi-telephone-outbound text-blue-600' 
+                                  : 'bi-telephone-inbound text-green-600'
+                              } text-lg`}></i>
                             </div>
                           </div>
                           
@@ -647,65 +813,156 @@ export default function CommunicationPage() {
                               <div className="flex items-center space-x-2 flex-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {senderInfo ? senderInfo.name : message.senderE164}
+                                    {senderInfo ? `${senderInfo.firstName} ${senderInfo.lastName}` : message.from}
                                   </span>
                                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-                                    {message.senderE164}
+                                    {message.from}
                                   </span>
                                 </div>
                                 <span className="text-gray-400 text-sm">→</span>
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-medium text-gray-700">
-                                    {receiverInfo ? receiverInfo.name : message.receiverE164}
+                                    {receiverInfo ? `${receiverInfo.firstName} ${receiverInfo.lastName}` : message.to}
                                   </span>
                                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-                                    {message.receiverE164}
+                                    {message.to}
                                   </span>
                                 </div>
                               </div>
                               
                               <div className="flex items-center space-x-2 ml-4">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                  message.isMonitored
-                                    ? 'bg-green-100 text-green-800 border border-green-200'
-                                    : 'bg-orange-100 text-orange-800 border border-orange-200'
-                                }`}>
-                                  {message.isMonitored ? '🟢 Monitored' : '🔶 External'}
-                                </span>
+                                <div 
+                                  className="relative group cursor-help"
+                                  title={message.status.charAt(0).toUpperCase() + message.status.slice(1).toLowerCase()}
+                                >
+                                  <i className={`bi ${
+                                    message.status === MessageStatus.DELIVERED
+                                      ? 'bi-check2-all text-green-600'
+                                      : message.status === MessageStatus.SENT
+                                      ? 'bi-check2 text-blue-600'
+                                      : message.status === MessageStatus.READ
+                                      ? 'bi-eye-fill text-blue-600'
+                                      : message.status === MessageStatus.FAILED
+                                      ? 'bi-exclamation-circle-fill text-red-600'
+                                      : message.status === MessageStatus.PENDING
+                                      ? 'bi-clock-fill text-gray-400'
+                                      : 'bi-question-circle text-gray-400'
+                                  } text-lg transition-colors duration-200`}></i>
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap">
+                                    {message.status.charAt(0).toUpperCase() + message.status.slice(1).toLowerCase()}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                             
                             {/* Message Content */}
-                            <div className="bg-gray-50 rounded-lg p-3 mb-2">
+                            <div className={`rounded-lg p-4 mb-2 ${
+                              message.direction === MessageDirection.OUTBOUND
+                                ? 'bg-primary-50 ml-12'
+                                : 'bg-white border border-gray-100 mr-12'
+                            }`}>
                               <div className="flex items-start justify-between">
-                                <p className="text-sm text-gray-800 flex-1">{message.content}</p>
-                                <div className="flex items-center space-x-2 ml-3">
-                                  {message.type !== 'text' && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                                      {message.type}
-                                    </span>
+                                <div className="flex-1">
+                                  {/* Message Type Icon */}
+                                  {message.type !== MessageType.TEXT && (
+                                    <div className="mb-2">
+                                      <span className={`inline-flex items-center space-x-1 text-xs ${
+                                        message.direction === MessageDirection.OUTBOUND
+                                          ? 'text-primary-700 bg-primary-100'
+                                          : 'text-blue-700 bg-blue-50'
+                                      } px-2 py-1 rounded-full`}>
+                                        <i className={`bi ${
+                                          message.type === MessageType.IMAGE
+                                            ? 'bi-image'
+                                            : message.type === MessageType.VIDEO
+                                            ? 'bi-camera-video'
+                                            : message.type === MessageType.AUDIO
+                                            ? 'bi-mic'
+                                            : message.type === MessageType.DOCUMENT
+                                            ? 'bi-file-earmark-text'
+                                            : 'bi-paperclip'
+                                        }`}></i>
+                                        <span>{message.type.toLowerCase()}</span>
+                                      </span>
+                                    </div>
                                   )}
-                                  <span className="text-xs text-gray-500 whitespace-nowrap">
-                                    {new Date(message.timestamp).toLocaleString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
+
+                                  {/* Message Content */}
+                                  <p className={`text-sm ${
+                                    message.direction === MessageDirection.OUTBOUND
+                                      ? 'text-primary-800'
+                                      : 'text-gray-800'
+                                  }`}>{message.content}</p>
+
+                                  {/* Media Content */}
+                                  {message.mediaUrl && (
+                                    <div className="mt-3 space-y-2">
+                                      <div className={`rounded-lg overflow-hidden ${
+                                        message.type === MessageType.IMAGE || message.type === MessageType.VIDEO
+                                          ? 'shadow-sm'
+                                          : ''
+                                      }`}>
+                                        {message.type === MessageType.IMAGE ? (
+                                          <img 
+                                            src={message.mediaUrl} 
+                                            alt="Message attachment" 
+                                            className="max-w-sm w-full object-cover rounded-lg" 
+                                          />
+                                        ) : message.type === MessageType.VIDEO ? (
+                                          <video 
+                                            src={message.mediaUrl} 
+                                            controls 
+                                            className="max-w-sm w-full rounded-lg" 
+                                          />
+                                        ) : message.type === MessageType.AUDIO ? (
+                                          <div className="bg-gray-50 p-3 rounded-lg">
+                                            <audio 
+                                              src={message.mediaUrl} 
+                                              controls 
+                                              className="w-full max-w-sm" 
+                                            />
+                                          </div>
+                                        ) : (
+                                          <a 
+                                            href={message.mediaUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg ${
+                                              message.direction === MessageDirection.OUTBOUND
+                                                ? 'bg-primary-100 text-primary-700 hover:bg-primary-200'
+                                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                          >
+                                            <i className="bi bi-download"></i>
+                                            <span>Download {message.type.toLowerCase()}</span>
+                                          </a>
+                                        )}
+                                      </div>
+                                      {message.metadata?.caption && (
+                                        <p className="text-sm text-gray-600 italic">
+                                          {message.metadata.caption}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Timestamp */}
+                                <div className="flex items-start space-x-2 ml-3 self-end">
+                                  <span className={`text-xs whitespace-nowrap ${
+                                    message.direction === MessageDirection.OUTBOUND
+                                      ? 'text-primary-600'
+                                      : 'text-gray-500'
+                                  }`}>
+                                    {new Date(message.sentAt).toLocaleString('en-US', {
                                       hour: '2-digit',
-                                      minute: '2-digit'
+                                      minute: '2-digit',
+                                      hour12: true
                                     })}
                                   </span>
                                 </div>
                               </div>
                             </div>
-                            
-                            {/* Entity Path */}
-                            {message.entityPath && (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs text-gray-500">📍</span>
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-primary-50 text-primary-700 border border-primary-200">
-                                  {message.entityPath}
-                                </span>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -713,6 +970,105 @@ export default function CommunicationPage() {
                   })
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                        <span className="font-medium">{Math.min(currentPage * pageSize, totalMessages)}</span> of{' '}
+                        <span className="font-medium">{totalMessages}</span> messages
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="pageSize" className="text-sm text-gray-700">
+                          Per page:
+                        </label>
+                        <select
+                          id="pageSize"
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="10">10</option>
+                          <option value="20">20</option>
+                          <option value="50">50</option>
+                          <option value="100">100</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="sr-only">Previous</span>
+                          <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                        
+                        {/* Page Numbers */}
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                currentPage === pageNum
+                                  ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        
+                        <button
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="sr-only">Next</span>
+                          <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

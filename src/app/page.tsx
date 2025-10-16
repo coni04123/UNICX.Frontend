@@ -174,41 +174,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-          </div>
-          <div className="card-body">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button className="flex items-center p-3 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors">
-                <BuildingOfficeIcon className="h-5 w-5 text-primary-600 mr-3" />
-                <span className="text-sm font-medium text-gray-900">Add Entity</span>
-              </button>
-              <button className="flex items-center p-3 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors">
-                <UsersIcon className="h-5 w-5 text-blue-600 mr-3" />
-                <span className="text-sm font-medium text-gray-900">Create E164 User</span>
-              </button>
-              <button className="flex items-center p-3 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors">
-                <EnvelopeIcon className="h-5 w-5 text-green-600 mr-3" />
-                <span className="text-sm font-medium text-gray-900">Monitor Messages</span>
-              </button>
-              <button 
-                onClick={resetOnboarding}
-                className="flex items-center p-3 rounded-md border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
-              >
-                <span className="text-blue-600 mr-3">🚀</span>
-                <span className="text-sm font-medium text-blue-900">Setup Guide</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Alerts and Activity */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <AlertCard alerts={mockAlerts} />
           <RecentActivity auditLogs={mockAuditLogs} />
-        </div>
       </div>
     </DashboardLayout>
   );

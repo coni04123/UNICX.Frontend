@@ -61,6 +61,13 @@ export default function Sidebar() {
       current: pathname.startsWith('/entities'),
     },
     {
+      name: t('users'),
+      href: '/users',
+      icon: UsersIcon,
+      iconSolid: UsersSolidIcon,
+      current: pathname.startsWith('/users'),
+    },
+    {
       name: t('communications'),
       href: '/communication',
       icon: EnvelopeIcon,

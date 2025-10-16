@@ -31,6 +31,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "entities": "Entities",
+    "users": "Users",
     "communication": "Communication",
     "communications": "Communications",
     "settings": "Settings",
