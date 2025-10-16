@@ -9,4 +9,5 @@ export interface Entity {
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+  children?: Entity[];
 }

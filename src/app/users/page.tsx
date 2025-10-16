@@ -29,6 +29,21 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
+interface WhatsAppSession {
+  status: string;
+  qrCode?: string;
+  qrCodeExpiresAt?: string;
+  sessionId: string;
+  lastActivityAt?: string;
+  connectedAt?: string;
+  disconnectedAt?: string;
+  whatsappName?: string;
+  messagesSent: number;
+  messagesReceived: number;
+  messagesDelivered: number;
+  messagesFailed: number;
+}
+
 interface User {
   _id: string;
   phoneNumber: string;
@@ -37,7 +52,6 @@ interface User {
   email: string;
   role: string;
   registrationStatus: string;
-  whatsappConnectionStatus: string;
   entityId: {
     _id: string;
     name: string;
@@ -48,11 +62,7 @@ interface User {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  whatsappQR?: {
-    qrCode: string;
-    expiresAt: string;
-    sessionId: string;
-  };
+  whatsappSession?: WhatsAppSession;
 }
 
 interface Entity {
@@ -65,6 +75,16 @@ interface Entity {
 }
 
 interface InviteUserForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  entityId: string;
+  role: string;
+}
+
+interface EditUserForm {
+  _id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -91,7 +111,18 @@ export default function UserManagementPage() {
   // Modals
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUserQR, setSelectedUserQR] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState<EditUserForm>({
+    _id: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    entityId: '',
+    role: ''
+  });
+  const [isEditing, setIsEditing] = useState(false);
 
   // Entity tree navigation
   const [selectedEntityPath, setSelectedEntityPath] = useState<string>('');
@@ -156,7 +187,28 @@ export default function UserManagementPage() {
       }
 
       const data = await api.getUsers(filters);
-      setUsers(data.users);
+      
+      // Get WhatsApp sessions for users with phone numbers
+      const usersWithSessions = await Promise.all(
+        data.users.map(async (user) => {
+          if (user.phoneNumber) {
+            try {
+              const sessionId = `whatsapp-${user.phoneNumber.slice(1)}`;
+              const sessionStatus = await api.getWhatsAppSessionStatus(sessionId);
+              return {
+                ...user,
+                whatsappSession: sessionStatus
+              };
+            } catch (err) {
+              console.warn(`Failed to get WhatsApp session for user ${user._id}:`, err);
+              return user;
+            }
+          }
+          return user;
+        })
+      );
+
+      setUsers(usersWithSessions);
       setTotalUsers(data.total);
       setTotalPages(data.totalPages);
       setCurrentPage(data.page);
@@ -306,13 +358,13 @@ export default function UserManagementPage() {
               <span className={`text-sm font-medium truncate ${isSelected ? 'text-primary-900' : 'text-gray-900'}`}>
                 {entity.name}
               </span>
-              {userCount > 0 && (
+              {/* {userCount > 0 && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ml-2 ${
                   isSelected ? 'bg-primary-200 text-primary-800' : 'bg-green-100 text-green-800'
                 }`}>
                   {userCount}
                 </span>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -390,6 +442,38 @@ export default function UserManagementPage() {
       setError(err.message || 'Failed to invite user');
     } finally {
       setIsInviting(false);
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!editForm.firstName || !editForm.lastName || !editForm.email || !editForm.entityId) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    setIsEditing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateUser(editForm._id, {
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        email: editForm.email,
+        entityId: editForm.entityId,
+        phoneNumber: editForm.phoneNumber || undefined
+      });
+
+      setSuccess(`User "${editForm.firstName} ${editForm.lastName}" updated successfully!`);
+      await loadUsers();
+      setShowEditModal(false);
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error updating user:', err);
+      setError(err.message || 'Failed to update user');
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -708,11 +792,11 @@ export default function UserManagementPage() {
                         <span className={`text-sm font-medium ${!selectedEntityPath ? 'text-primary-900' : 'text-gray-900'}`}>
                           All Users
                         </span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        {/* <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           !selectedEntityPath ? 'bg-primary-200 text-primary-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {users.length}
-                        </span>
+                        </span> */}
                       </div>
                     </div>
                   </div>
@@ -851,9 +935,6 @@ export default function UserManagementPage() {
                         </th>
                       )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Entity
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       {/* Show WhatsApp & QR Code only for Users, not Tenant Admins */}
@@ -909,26 +990,27 @@ export default function UserManagementPage() {
                               <div className="text-sm text-gray-500">{user.phoneNumber || 'N/A'}</div>
                             </td>
                           )}
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900">
-                              {typeof user.entityId === 'object' && user.entityId ? user.entityId.name : 'N/A'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {typeof user.entityId === 'object' && user.entityId ? user.entityId.path : user.entityPath || 'N/A'}
-                            </div>
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getStatusBadge(user.registrationStatus)}>
-                              {user.registrationStatus}
+                            <span className={getStatusBadge(user.whatsappSession?.status || 'disconnected')}>
+                              {user.whatsappSession?.status || 'disconnected'}
                             </span>
                           </td>
                           {/* Show WhatsApp & QR Code only for Users, not Tenant Admins */}
                           {!isViewingTenantAdmins && (
                             <>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={getStatusBadge(user.whatsappConnectionStatus)}>
-                                  {user.whatsappConnectionStatus}
-                                </span>
+                                <div className="flex flex-col space-y-1">
+                                  {user.whatsappSession?.whatsappName && (
+                                    <span className="text-xs text-gray-500">
+                                      {user.whatsappSession.whatsappName}
+                                    </span>
+                                  )}
+                                  {user.whatsappSession?.lastActivityAt && (
+                                    <span className="text-xs text-gray-400">
+                                      Last active: {new Date(user.whatsappSession.lastActivityAt).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <button
@@ -942,13 +1024,33 @@ export default function UserManagementPage() {
                             </>
                           )}
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => deleteUser(user._id, `${user.firstName} ${user.lastName}`)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete user"
-                            >
-                              <TrashIcon className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center justify-end space-x-3">
+                              {/* <button
+                                onClick={() => {
+                                  setEditForm({
+                                    _id: user._id,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    email: user.email,
+                                    entityId: user.entityId ? (typeof user.entityId === 'object' ? user.entityId._id : user.entityId) : '',
+                                    role: user.role,
+                                    phoneNumber: user.phoneNumber || ''
+                                  });
+                                  setShowEditModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Edit user"
+                              >
+                                <PencilIcon className="w-5 h-5" />
+                              </button> */}
+                              <button
+                                onClick={() => deleteUser(user._id, `${user.firstName} ${user.lastName}`)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete user"
+                              >
+                                <TrashIcon className="w-5 h-5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1228,6 +1330,151 @@ export default function UserManagementPage() {
           </div>
         )}
 
+        {/* Edit User Modal */}
+        {showEditModal && (
+          <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-screen w-screen z-[9999] flex items-start justify-center pt-20">
+            <div className="relative mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white mb-20">
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Edit User
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setError('');
+                    }}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+
+                {/* Error message inside modal */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.firstName}
+                        onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.lastName}
+                        onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="john.doe@example.com"
+                    />
+                  </div>
+
+                  {/* Phone Number - Optional for TenantAdmin */}
+                  {editForm.role !== 'TenantAdmin' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number (E.164 format)
+                        {editForm.role === 'User' && ' *'}
+                      </label>
+                      <input
+                        type="tel"
+                        value={editForm.phoneNumber}
+                        onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="+1234567890"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Must start with + and country code</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Entity *
+                    </label>
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                        <p className="text-xs text-gray-600">
+                          {editForm.entityId 
+                            ? `Selected: ${findEntityById(editForm.entityId)?.name || 'Unknown'}`
+                            : 'Select an entity from the tree below'}
+                        </p>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto bg-white">
+                        {entities.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <BuildingOfficeIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">No entities available</p>
+                          </div>
+                        ) : (
+                          entities.map(entity => renderModalEntityNode(entity))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setError('');
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEditUser}
+                    disabled={isEditing}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center"
+                  >
+                    {isEditing ? (
+                      <>
+                        <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <PencilIcon className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* QR Code Modal */}
         {showQRModal && selectedUserQR && (
           <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-screen w-screen z-[9999] flex items-start justify-center pt-20">
@@ -1268,26 +1515,28 @@ export default function UserManagementPage() {
                   <p className="text-sm text-gray-600 mb-6">{selectedUserQR.phoneNumber}</p>
 
                   {/* WhatsApp QR Code */}
-                  {selectedUserQR.whatsappQR ? (
+                  {selectedUserQR.whatsappSession?.qrCode ? (
                     <div className="border rounded-lg p-8 mb-6">
                       {/* Display actual QR code image */}
                       <img 
-                        src={`${selectedUserQR.whatsappQR.qrCode}`}
+                        src={`data:image/png;base64,${selectedUserQR.whatsappSession.qrCode}`}
                         alt="WhatsApp QR Code"
                         className="w-48 h-48 mx-auto"
                       />
                       <div className="mt-4 text-sm text-gray-600">
                         <p>Scan with WhatsApp to connect</p>
-                        <p className="text-xs mt-1">
-                          Expires: {new Date(selectedUserQR.whatsappQR.expiresAt).toLocaleString()}
-                        </p>
+                        {selectedUserQR.whatsappSession.qrCodeExpiresAt && (
+                          <p className="text-xs mt-1">
+                            Expires: {new Date(selectedUserQR.whatsappSession.qrCodeExpiresAt).toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ) : (
                     <div className="border-4 border-dashed border-gray-300 rounded-lg p-8 mb-6">
                       <QrCodeIcon className="w-48 h-48 mx-auto text-gray-400" />
                       <p className="text-sm text-gray-500 mt-4">
-                        {selectedUserQR.whatsappConnectionStatus === 'connected' 
+                        {selectedUserQR.whatsappSession?.status === 'ready' 
                           ? 'User is already connected to WhatsApp'
                           : 'No active QR code available'}
                       </p>
@@ -1295,14 +1544,62 @@ export default function UserManagementPage() {
                   )}
 
                   {/* WhatsApp Connection Status */}
-                  <div className="text-left bg-gray-50 p-4 rounded-lg">
-                    <h5 className="text-sm font-medium text-gray-900 mb-2">WhatsApp Connection</h5>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Status</span>
-                      <span className={getStatusBadge(selectedUserQR.whatsappConnectionStatus)}>
-                        {selectedUserQR.whatsappConnectionStatus}
-                      </span>
+                  <div className="text-left bg-gray-50 p-4 rounded-lg space-y-4">
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-900 mb-2">WhatsApp Connection</h5>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Status</span>
+                        <span className={getStatusBadge(selectedUserQR.whatsappSession?.status || 'disconnected')}>
+                          {selectedUserQR.whatsappSession?.status || 'disconnected'}
+                        </span>
+                      </div>
+                      {selectedUserQR.whatsappSession?.whatsappName && (
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm text-gray-600">WhatsApp Name</span>
+                          <span className="text-sm text-gray-800">{selectedUserQR.whatsappSession.whatsappName}</span>
+                        </div>
+                      )}
+                      {selectedUserQR.whatsappSession?.lastActivityAt && (
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm text-gray-600">Last Activity</span>
+                          <span className="text-sm text-gray-800">
+                            {new Date(selectedUserQR.whatsappSession.lastActivityAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    {selectedUserQR.whatsappSession?.status === 'ready' && (
+                      <div>
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">Message Statistics</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-green-50 p-2 rounded">
+                            <div className="text-xs text-green-600">Sent</div>
+                            <div className="text-sm font-medium text-green-800">
+                              {selectedUserQR.whatsappSession.messagesSent}
+                            </div>
+                          </div>
+                          <div className="bg-blue-50 p-2 rounded">
+                            <div className="text-xs text-blue-600">Received</div>
+                            <div className="text-sm font-medium text-blue-800">
+                              {selectedUserQR.whatsappSession.messagesReceived}
+                            </div>
+                          </div>
+                          <div className="bg-purple-50 p-2 rounded">
+                            <div className="text-xs text-purple-600">Delivered</div>
+                            <div className="text-sm font-medium text-purple-800">
+                              {selectedUserQR.whatsappSession.messagesDelivered}
+                            </div>
+                          </div>
+                          <div className="bg-red-50 p-2 rounded">
+                            <div className="text-xs text-red-600">Failed</div>
+                            <div className="text-sm font-medium text-red-800">
+                              {selectedUserQR.whatsappSession.messagesFailed}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1313,7 +1610,7 @@ export default function UserManagementPage() {
                   >
                     Close
                   </button>
-                  {selectedUserQR.whatsappConnectionStatus !== 'connected' && (
+                  {selectedUserQR.whatsappSession?.status !== 'ready' && (
                     <button
                       onClick={async () => {
                         try {

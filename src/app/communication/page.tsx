@@ -14,19 +14,11 @@ import {
   UsersIcon,
   MapPinIcon,
   ArrowPathIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '@/lib/api';
 import { Message, MessageDirection, MessageStatus, MessageType } from '@/types/messages';
 import { Entity } from '@/types/entities';
-
-interface ElasticEntity {
-  id: string;
-  name: string;
-  type: string;
-  path: string;
-  parentId?: string;
-  children?: ElasticEntity[];
-}
 
 interface FilterOptions {
   entityUserNumber?: string;
@@ -99,6 +91,20 @@ export default function CommunicationPage() {
         limit: pageSize,
       };
 
+      // Add tenantId and entityId filters based on user role and selected entity
+      if (currentUser?.role !== 'SystemAdmin' && currentUser?.tenantId) {
+        filters.tenantId = currentUser.tenantId;
+      }
+
+      if (selectedEntityPath) {
+        const selectedEntity = findEntityByPath(entities, selectedEntityPath);
+        if (selectedEntity) {
+          filters.entityId = selectedEntity._id;
+        }
+      } else if (currentUser?.role !== 'SystemAdmin' && currentUser?.entityId) {
+        filters.entityId = currentUser.entityId;
+      }
+
       if (whatsappFilters.direction && whatsappFilters.direction !== 'both') {
         filters.direction = whatsappFilters.direction;
       }
@@ -134,6 +140,8 @@ export default function CommunicationPage() {
         }
       }
 
+      console.log('Fetching messages with filters:', filters);
+
       const data = await api.getWhatsAppMessages(filters);
       setMessages(data.messages);
       setTotalMessages(data.total);
@@ -158,24 +166,19 @@ export default function CommunicationPage() {
 
   const loadEntities = async () => {
     try {
-      setIsLoadingEntities(true);
-      setError('');
-
       // Only fetch entities under user's entityId for non-system admins
       const data = await api.getEntities({
         ancestorId: currentUser?.role === 'SystemAdmin' ? undefined : currentUser?.entityId
       });
-      setEntities(data);
-
+      
+      const tree = buildEntityTree(data);
+      setEntities(tree);
+      
       // Auto-expand root entities
       const rootEntities = data.filter((e: Entity) => !e.parentId);
       setExpandedNodes(new Set(rootEntities.map((e: Entity) => e._id)));
-
     } catch (err: any) {
       console.error('Error loading entities:', err);
-      setError(err.message || 'Failed to load entities');
-    } finally {
-      setIsLoadingEntities(false);
     }
   };
 
@@ -193,40 +196,33 @@ export default function CommunicationPage() {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['entity-x']));
   const [showStructurePanel, setShowStructurePanel] = useState(true);
 
-  // Helper functions for elastic structure
-  const buildEntityTree = (entities: ElasticEntity[]): ElasticEntity[] => {
-    const entityMap = new Map<string, ElasticEntity>();
-    const rootEntities: ElasticEntity[] = [];
+  // Build entity tree structure
+  const buildEntityTree = (entityList: Entity[]): Entity[] => {
+    const entityMap = new Map<string, Entity & { children: Entity[] }>();
+    const rootEntities: (Entity & { children: Entity[] })[] = [];
 
-    // Create map of all entities
-    entities.forEach(entity => {
-      entityMap.set(entity.id, { ...entity, children: [] });
+    entityList.forEach(entity => {
+      entityMap.set(entity._id, { ...entity, children: [] });
     });
 
-    // Build tree structure
-    entities.forEach(entity => {
-      const entityNode = entityMap.get(entity.id)!;
+    entityList.forEach(entity => {
+      const entityNode = entityMap.get(entity._id)!;
       if (entity.parentId) {
         const parent = entityMap.get(entity.parentId);
         if (parent) {
-          parent.children!.push(entityNode);
+          parent.children.push(entityNode);
+        } else {
+          rootEntities.push(entityNode);
         }
       } else {
         rootEntities.push(entityNode);
       }
     });
 
-    return rootEntities;
+    return rootEntities as Entity[];
   };
 
-  const getEntityIcon = (type: string) => {
-    switch (type) {
-      case 'entity': return 'bi-building';
-      case 'company': return 'bi-building-fill';
-      case 'department': return 'bi-folder2-open';
-      default: return 'bi-folder';
-    }
-  };
+  // Removed getEntityIcon as we're using Heroicons directly
 
   const toggleNodeExpansion = (nodeId: string) => {
     const newExpanded = new Set(expandedNodes);
@@ -243,16 +239,15 @@ export default function CommunicationPage() {
     setWhatsappFilters(prev => ({ ...prev, entityPath: path }));
   };
 
-  // Convert entities to elastic format
-  const elasticEntities = entities.map(entity => ({
-    id: entity._id,
-    name: entity.name,
-    type: entity.type,
-    path: entity.path,
-    parentId: entity.parentId,
-  }));
+  // Helper function to find entity by path
+  const findEntityByPath = (entityList: Entity[], path: string): Entity | null => {
+    return entityList.find(entity => entity.path === path) || null;
+  };
 
-  const entityTree = buildEntityTree(elasticEntities);
+  // Helper function to find entity by ID
+  const findEntityById = (entityId: string): Entity | null => {
+    return entities.find(entity => entity._id === entityId) || null;
+  };
 
   // Get users in selected entity path
   const usersInSelectedPath = selectedEntityPath 
@@ -339,22 +334,18 @@ export default function CommunicationPage() {
            matchesE164 && matchesTimeRange && matchesType && matchesDirection && matchesRegistration;
   }).sort((a, b) => new Date(b.timestamp || b.sentAt).getTime() - new Date(a.timestamp || a.sentAt).getTime());
 
-  // Render elastic structure tree
-  const renderEntityNode = (entity: ElasticEntity, level: number = 0) => {
-    const isExpanded = expandedNodes.has(entity.id);
+  // Render entity tree node
+  const renderEntityNode = (entity: Entity, level: number = 0) => {
+    const isExpanded = expandedNodes.has(entity._id);
     const hasChildren = entity.children && entity.children.length > 0;
     const isSelected = selectedEntityPath === entity.path;
     const messageCount = messages.filter((msg: Message) => 
       msg.entityPath === entity.path || 
       (msg.entityPath && msg.entityPath.startsWith(entity.path + ' >'))
     ).length;
-    const userCount = users.filter((user: any) => 
-      user.entityPath === entity.path || 
-      user.entityPath.startsWith(entity.path + ' >')
-    ).length;
 
     return (
-      <div key={entity.id} className="select-none">
+      <div key={entity._id} className="select-none">
         <div
           className={`flex items-center py-2 px-3 rounded-lg cursor-pointer transition-all duration-200 ${
             isSelected 
@@ -368,7 +359,7 @@ export default function CommunicationPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleNodeExpansion(entity.id);
+                toggleNodeExpansion(entity._id);
               }}
               className="mr-2 p-0.5 rounded hover:bg-gray-200 transition-colors"
             >
@@ -381,36 +372,35 @@ export default function CommunicationPage() {
           )}
           {!hasChildren && <div className="w-5 mr-2" />}
           
-          <i className={`bi ${getEntityIcon(entity.type)} mr-2 text-gray-600`}></i>
+          <div className="mr-2 flex-shrink-0">
+            {entity.type === 'entity' ? (
+              <BuildingOfficeIcon className="w-4 h-4 text-primary-600" />
+            ) : entity.type === 'company' ? (
+              <BuildingOfficeIcon className="w-4 h-4 text-blue-600" />
+            ) : (
+              <UserGroupIcon className="w-4 h-4 text-green-600" />
+            )}
+          </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <span className={`text-sm font-medium truncate ${isSelected ? 'text-primary-900' : 'text-gray-900'}`}>
                 {entity.name}
               </span>
-              <div className="flex items-center space-x-2 ml-2">
-                {messageCount > 0 && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    isSelected ? 'bg-primary-200 text-primary-800' : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {messageCount}
-                  </span>
-                )}
-                {userCount > 0 && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    isSelected ? 'bg-primary-200 text-primary-800' : 'bg-green-100 text-green-800'
-                  }`}>
-                    {userCount}
-                  </span>
-                )}
-              </div>
+              {messageCount > 0 && (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                  isSelected ? 'bg-primary-200 text-primary-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {messageCount}
+                </span>
+              )}
             </div>
           </div>
         </div>
         
         {hasChildren && isExpanded && (
           <div className="mt-1">
-            {entity.children!.map(child => renderEntityNode(child, level + 1))}
+            {entity.children!.map((child: Entity) => renderEntityNode(child, level + 1))}
           </div>
         )}
       </div>
@@ -425,15 +415,7 @@ export default function CommunicationPage() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">WhatsApp Communication Monitoring</h1>
             <p className="mt-2 text-sm text-gray-700">
-              Navigate through your elastic entity structure and monitor WhatsApp messages&nbsp;-&nbsp;
-              <span className='inline-flex px-2 py-1 bg-cyan-700 text-secondary rounded-md'>{filteredWhatsAppMessages.length} messages</span>
-              <br />
-              {selectedEntityPath && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-primary-100 text-primary-800">
-                  <MapPinIcon className="w-3 h-3 mr-1" />
-                  {selectedEntityPath}
-                </span>
-              )}
+              Navigate through your elastic entity structure and monitor WhatsApp messages
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -459,10 +441,6 @@ export default function CommunicationPage() {
               <FunnelIcon className="w-4 h-4 mr-2" />
               Advanced Filters
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-              <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-              {tCommon('export')}
-            </button>
           </div>
         </div>
 
@@ -480,7 +458,7 @@ export default function CommunicationPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">Entity Structure</h3>
-                        <p className="text-sm text-gray-600">Navigate and filter by structure</p>
+                        <p className="text-sm text-gray-600">Navigate and filter</p>
                       </div>
                     </div>
                     {selectedEntityPath && (
@@ -503,24 +481,36 @@ export default function CommunicationPage() {
                     }`}
                     onClick={() => selectEntityPath('')}
                   >
-                    <i className="bi bi-globe mr-2 text-gray-600"></i>
+                    <div className="mr-2 flex-shrink-0">
+                      <BuildingOfficeIcon className="w-4 h-4 text-primary-600" />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className={`text-sm font-medium ${!selectedEntityPath ? 'text-primary-900' : 'text-gray-900'}`}>
                           All Messages
                         </span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          !selectedEntityPath ? 'bg-primary-200 text-primary-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {messages.length}
-                        </span>
+                        {/* {messages.length > 0 && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            !selectedEntityPath ? 'bg-primary-200 text-primary-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {messages.length}
+                          </span>
+                        )} */}
                       </div>
                     </div>
                   </div>
                   
                   {/* Entity Tree */}
                   <div className="space-y-1">
-                    {entityTree.map(entity => renderEntityNode(entity))}
+                    {entities.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <BuildingOfficeIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No entities found</p>
+                        <p className="text-xs mt-1">Create entities to organize messages</p>
+                      </div>
+                    ) : (
+                      entities.map(entity => renderEntityNode(entity))
+                    )}
                   </div>
                 </div>
               </div>
@@ -592,9 +582,9 @@ export default function CommunicationPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">All Entity Parts</option>
-                      {elasticEntities.map(entity => (
-                        <option key={entity.id} value={entity.path}>
-                          {getEntityIcon(entity.type)} {entity.name}
+                      {entities.map((entity: Entity) => (
+                        <option key={entity._id} value={entity.path}>
+                          {entity.type === 'entity' ? '🏢' : entity.type === 'company' ? '🏬' : '👥'} {entity.name}
                         </option>
                       ))}
                     </select>
@@ -758,15 +748,6 @@ export default function CommunicationPage() {
                       <h3 className="text-lg font-semibold text-gray-900">WhatsApp Messages</h3>
                       <p className="text-sm text-gray-500">Real-time communication history</p>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">{filteredWhatsAppMessages.length}</span> messages
-                      {filteredWhatsAppMessages.length !== messages.length && (
-                        <span className="text-gray-500"> of {messages.length}</span>
-                      )}
-                    </div>
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   </div>
                 </div>
               </div>
@@ -993,11 +974,11 @@ export default function CommunicationPage() {
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       <p className="text-sm text-gray-700">
-                        Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                        Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>~
                         <span className="font-medium">{Math.min(currentPage * pageSize, totalMessages)}</span> of{' '}
                         <span className="font-medium">{totalMessages}</span> messages
                       </p>
-                      <div className="flex items-center gap-2">
+                      {/* <div className="flex items-center gap-2">
                         <label htmlFor="pageSize" className="text-sm text-gray-700">
                           Per page:
                         </label>
@@ -1015,7 +996,7 @@ export default function CommunicationPage() {
                           <option value="50">50</option>
                           <option value="100">100</option>
                         </select>
-                      </div>
+                      </div> */}
                     </div>
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">

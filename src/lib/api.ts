@@ -408,6 +408,8 @@ class ApiClient {
     startDate?: string;
     endDate?: string;
     conversationId?: string;
+    tenantId?: string;
+    entityId?: string;
   }): Promise<{
     messages: any[];
     total: number;
@@ -427,6 +429,8 @@ class ApiClient {
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
     if (filters?.conversationId) params.append('conversationId', filters.conversationId);
+    if (filters?.tenantId) params.append('tenantId', filters.tenantId);
+    if (filters?.entityId) params.append('entityId', filters.entityId);
 
     const queryString = params.toString();
     return this.get(`/whatsapp/messages${queryString ? `?${queryString}` : ''}`);
