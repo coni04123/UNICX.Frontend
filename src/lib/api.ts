@@ -439,6 +439,44 @@ class ApiClient {
   async getWhatsAppConversations(): Promise<any[]> {
     return this.get('/whatsapp/conversations');
   }
+
+  // Dashboard APIs
+  async getDashboardStats(): Promise<{
+    entities: {
+      total: number;
+      companies: number;
+      departments: number;
+      e164Users: number;
+      registrationRate: number;
+      change: {
+        value: number;
+        period: string;
+        type: 'increase' | 'decrease';
+      };
+    };
+    messages: {
+      sent24h: number;
+      monitored: number;
+      external: number;
+      activeConversations: number;
+      change: {
+        value: number;
+        period: string;
+        type: 'increase' | 'decrease';
+      };
+    };
+    users: {
+      total: number;
+      monitored: number;
+      change: {
+        value: number;
+        period: string;
+        type: 'increase' | 'decrease';
+      };
+    };
+  }> {
+    return this.get('/dashboard/stats');
+  }
 }
 
 // Export a singleton instance

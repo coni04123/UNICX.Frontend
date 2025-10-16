@@ -57,6 +57,11 @@ export default function CommunicationPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [allE164Numbers, setAllE164Numbers] = useState<Set<string>>(new Set());
   
+  // Entity navigation state
+  const [selectedEntityPath, setSelectedEntityPath] = useState<string>('');
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['entity-x']));
+  const [showStructurePanel, setShowStructurePanel] = useState(true);
+  
   // WhatsApp monitoring filters
   const [whatsappFilters, setWhatsappFilters] = useState<FilterOptions>({
     entityUserNumber: '',
@@ -69,10 +74,10 @@ export default function CommunicationPage() {
   });
   const [showWhatsAppFilters, setShowWhatsAppFilters] = useState(false);
 
-  // Load messages
+  // Load messages when filters, pagination, or selected entity changes
   useEffect(() => {
     loadMessages();
-  }, [currentPage, pageSize, whatsappFilters]);
+  }, [currentPage, pageSize, whatsappFilters, selectedEntityPath]);
 
   // Load entities and users
   useEffect(() => {
@@ -96,13 +101,18 @@ export default function CommunicationPage() {
         filters.tenantId = currentUser.tenantId;
       }
 
+      // Always include entityId filter based on selection or user's entityId
       if (selectedEntityPath) {
         const selectedEntity = findEntityByPath(entities, selectedEntityPath);
         if (selectedEntity) {
           filters.entityId = selectedEntity._id;
+          console.log('Selected entity ID:', selectedEntity._id); // Debug log
+        } else {
+          console.warn('Selected entity not found for path:', selectedEntityPath); // Debug log
         }
       } else if (currentUser?.role !== 'SystemAdmin' && currentUser?.entityId) {
         filters.entityId = currentUser.entityId;
+        console.log('Using user entityId:', currentUser.entityId); // Debug log
       }
 
       if (whatsappFilters.direction && whatsappFilters.direction !== 'both') {
@@ -191,11 +201,6 @@ export default function CommunicationPage() {
     }
   };
 
-  // Elastic structure navigation state
-  const [selectedEntityPath, setSelectedEntityPath] = useState<string>('');
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['entity-x']));
-  const [showStructurePanel, setShowStructurePanel] = useState(true);
-
   // Build entity tree structure
   const buildEntityTree = (entityList: Entity[]): Entity[] => {
     const entityMap = new Map<string, Entity & { children: Entity[] }>();
@@ -239,9 +244,16 @@ export default function CommunicationPage() {
     setWhatsappFilters(prev => ({ ...prev, entityPath: path }));
   };
 
-  // Helper function to find entity by path
+  // Helper function to find entity by path (recursive)
   const findEntityByPath = (entityList: Entity[], path: string): Entity | null => {
-    return entityList.find(entity => entity.path === path) || null;
+    for (const entity of entityList) {
+      if (entity.path === path) return entity;
+      if (entity.children) {
+        const found = findEntityByPath(entity.children, path);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   // Helper function to find entity by ID
