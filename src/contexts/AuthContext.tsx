@@ -13,6 +13,7 @@ interface User {
   tenantId: string;
   entityId: string;
   entityPath: string;
+  phoneNumber?: string;
 }
 
 interface AuthContextType {

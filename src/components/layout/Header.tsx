@@ -301,9 +301,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     <Badge variant={roleInfo.badgeColor} className="text-xs">
                       {user?.role || 'User'}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
+                    {/* <Badge variant="outline" className="text-xs">
                       {user?.tenant || '2N5'}
-                    </Badge>
+                    </Badge> */}
                   </div>
                 </div>
                 <ChevronDownIcon className="h-4 w-4 ml-2 text-gray-400" />

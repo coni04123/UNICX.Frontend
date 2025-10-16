@@ -1317,7 +1317,7 @@ export default function UserManagementPage() {
                     <button
                       onClick={async () => {
                         try {
-                          await api.regenerateWhatsAppQR(selectedUserQR._id);
+                          // await api.regenerateWhatsAppQR(selectedUserQR._id);
                           // Refresh user data to get new QR code
                           const updatedUser = await api.getUser(selectedUserQR._id);
                           setSelectedUserQR(updatedUser);
