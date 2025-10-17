@@ -1627,9 +1627,13 @@ export default function UserManagementPage() {
                             whatsappSession: {
                               ...selectedUserQR.whatsappSession,
                               qrCode: qrData.qrCode,
-                              qrCodeExpiresAt: qrData.expiresAt,
+                              qrCodeExpiresAt: qrData.expiresAt.toISOString(),
                               sessionId: qrData.sessionId,
-                              status: 'connecting'
+                              status: 'connecting',
+                              messagesSent: selectedUserQR.whatsappSession?.messagesSent || 0,
+                              messagesReceived: selectedUserQR.whatsappSession?.messagesReceived || 0,
+                              messagesDelivered: selectedUserQR.whatsappSession?.messagesDelivered || 0,
+                              messagesFailed: selectedUserQR.whatsappSession?.messagesFailed || 0
                             }
                           });
 
