@@ -101,6 +101,7 @@ export default function UserManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isRegeneratingQR, setIsRegeneratingQR] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -1614,18 +1615,50 @@ export default function UserManagementPage() {
                     <button
                       onClick={async () => {
                         try {
-                          // await api.regenerateWhatsAppQR(selectedUserQR._id);
-                          // Refresh user data to get new QR code
-                          const updatedUser = await api.getUser(selectedUserQR._id);
-                          setSelectedUserQR(updatedUser);
+                          setError('');
+                          setIsRegeneratingQR(true);
+                          
+                          // Get new QR code
+                          const qrData = await api.regenerateQRCode(selectedUserQR._id);
+                          
+                          // Update the selected user with new QR code
+                          setSelectedUserQR({
+                            ...selectedUserQR,
+                            whatsappSession: {
+                              ...selectedUserQR.whatsappSession,
+                              qrCode: qrData.qrCode,
+                              qrCodeExpiresAt: qrData.expiresAt,
+                              sessionId: qrData.sessionId,
+                              status: 'connecting'
+                            }
+                          });
+
+                          // Refresh the users list to update status
+                          await loadUsers();
+                          
+                          // Show success message
+                          setSuccess('QR code regenerated successfully');
+                          setTimeout(() => setSuccess(''), 3000);
                         } catch (err: any) {
                           setError(err.message || 'Failed to regenerate QR code');
+                        } finally {
+                          setIsRegeneratingQR(false);
                         }
                       }}
+                      disabled={isRegeneratingQR}
                       className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
                     >
-                      <ArrowPathIcon className="w-4 h-4 inline mr-2" />
-                      Generate New QR Code
+                      {isRegeneratingQR ? (
+                        <>
+                          <ArrowPathIcon className="w-4 h-4 inline mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowPathIcon className="w-4 h-4 inline mr-2" />
+                          Generate New QR Code
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

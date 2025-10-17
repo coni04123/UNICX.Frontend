@@ -375,6 +375,10 @@ class ApiClient {
     return this.get(`/users/search?q=${encodeURIComponent(query)}`);
   }
 
+  async regenerateQRCode(userId: string): Promise<{ qrCode: string; expiresAt: Date; sessionId: string }> {
+    return this.post(`/users/${userId}/regenerate-qr`, {});
+  }
+
   // WhatsApp APIs
   async createWhatsAppSession(): Promise<any> {
     return this.post('/whatsapp/sessions', {});
