@@ -1,45 +1,45 @@
-# Build stage
-FROM node:latest AS builder
+# -----------------------------------------
+# 1️⃣ Build Stage
+# -----------------------------------------
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy dependency files first (better layer caching)
 COPY package*.json ./
 
-# Install dependencies with clean npm cache
-RUN npm cache clean --force && \
-    npm install
+# Install all dependencies (including devDependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the Next.js app
 RUN npm run build
 
-# Production stage
-FROM node:latest AS runner
+
+# -----------------------------------------
+# 2️⃣ Production Stage
+# -----------------------------------------
+FROM node:18-alpine AS runner
 
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy necessary files from builder
+# Copy only required files for running the app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy build output and public assets from builder
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/next.config.js ./next.config.js
 
-# Install production dependencies
-RUN npm install --omit=dev
+# Optional: if you use custom server.js, copy it too
+# COPY --from=builder /app/server.js ./server.js
 
-# Set environment variables
-ENV NODE_ENV=production \
-    PORT=3000
-
-# Expose port
+# Expose the port Next.js runs on
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
-
-# Start the application
+# Start Next.js
 CMD ["npm", "start"]
