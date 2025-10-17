@@ -23,13 +23,9 @@ WORKDIR /app
 
 # Copy necessary files from builder
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/next.config.js ./
-
-
-# Conditionally copy public folder
-RUN mkdir -p ./public && \
-    if [ -d /app/public ]; then cp -r /app/public ./public; fi
 
 # Install production dependencies
 RUN npm install --omit=dev
