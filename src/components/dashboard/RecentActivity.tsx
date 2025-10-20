@@ -25,68 +25,97 @@ interface ActivityItem {
 }
 
 interface RecentActivityProps {
-  auditLogs: AuditLog[];
+  auditLogs: any[];
   maxDisplay?: number;
 }
 
 export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentActivityProps) {
   // Convert audit logs to activity items
-  const activities: ActivityItem[] = [
-    // Recent system activities (simulated)
-    {
-      id: 'act-1',
-      type: 'campaign_update' as const,
-      title: 'Q4 Product Launch Campaign Started',
-      description: 'Campaign targeting 500 enterprise customers is now running',
-      timestamp: new Date('2024-09-26T08:00:00Z'),
-      user: 'Sarah Johnson',
-      status: 'success' as const,
-    },
-    {
-      id: 'act-2',
-      type: 'alert' as const,
-      title: 'WhatsApp Account Blocked',
-      description: 'Marketing Campaigns account (+1-555-0125) has been blocked',
-      timestamp: new Date('2024-09-26T06:30:00Z'),
-      status: 'error' as const,
-    },
-    {
-      id: 'act-3',
-      type: 'user_action' as const,
-      title: 'Spy Number Configuration Updated',
-      description: 'Main Surveillance spy number alert threshold changed to 6 hours',
-      timestamp: new Date('2024-09-25T14:30:00Z'),
-      user: 'Sarah Johnson',
-      status: 'info' as const,
-    },
-    {
-      id: 'act-4',
-      type: 'system' as const,
-      title: 'Health Check Completed',
-      description: 'All active WhatsApp accounts passed health verification',
-      timestamp: new Date('2024-09-25T12:00:00Z'),
-      status: 'success' as const,
-    },
-    {
-      id: 'act-5',
-      type: 'campaign_update' as const,
-      title: 'Payment Reminder Campaign Completed',
-      description: '3 messages sent with 100% delivery rate',
-      timestamp: new Date('2024-09-25T11:30:00Z'),
-      user: 'Mike Davis',
-      status: 'success' as const,
-    },
-    // Add audit log activities
-    ...auditLogs.slice(0, 5).map((log) => ({
+  const convertAuditLogToActivity = (log: any): ActivityItem => {
+    const getActivityType = (action: string, resource: string) => {
+      if (action === 'login' || action === 'logout') return 'system';
+      if (action === 'create' || action === 'update' || action === 'delete') return 'user_action';
+      if (resource === 'campaign' || resource === 'message') return 'campaign_update';
+      return 'user_action';
+    };
+
+    const getStatus = (action: string) => {
+      switch (action) {
+        case 'create':
+        case 'login':
+          return 'success';
+        case 'delete':
+        case 'logout':
+          return 'warning';
+        case 'update':
+          return 'info';
+        default:
+          return 'info';
+      }
+    };
+
+    const getTitle = (action: string, resource: string) => {
+      const actionText = action.charAt(0).toUpperCase() + action.slice(1);
+      const resourceText = resource.charAt(0).toUpperCase() + resource.slice(1);
+      return `${actionText} ${resourceText}`;
+    };
+
+    const getDescription = (action: string, resource: string, metadata: any) => {
+      if (metadata?.details) return metadata.details;
+      return `${action} operation performed on ${resource}`;
+    };
+
+    return {
       id: log.id,
-      type: 'user_action' as const,
-      title: `${log.action} ${log.resource.replace('_', ' ')}`,
-      description: `${log.resource} modified by user`,
-      timestamp: log.timestamp,
-      user: log.userId,
-      status: log.result === 'success' ? 'success' as const : 'error' as const,
-    })),
-  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, maxDisplay);
+      type: getActivityType(log.action, log.resource),
+      title: getTitle(log.action, log.resource),
+      description: getDescription(log.action, log.resource, log.metadata),
+      timestamp: new Date(log.timestamp),
+      user: log.userEmail,
+      status: getStatus(log.action),
+    };
+  };
+
+  const activities: ActivityItem[] = auditLogs
+    .slice(0, maxDisplay)
+    .map(convertAuditLogToActivity);
+
+  // Add some mock activities if no audit logs are available
+  if (activities.length === 0) {
+    activities.push(
+      {
+        id: 'act-1',
+        type: 'campaign_update' as const,
+        title: 'Q4 Product Launch Campaign Started',
+        description: 'Campaign targeting 500 enterprise customers is now running',
+        timestamp: new Date('2024-09-26T08:00:00Z'),
+        user: 'Sarah Johnson',
+        status: 'success' as const,
+      },
+      {
+        id: 'act-2',
+        type: 'alert' as const,
+        title: 'WhatsApp Account Blocked',
+        description: 'Marketing Campaigns account (+1-555-0125) has been blocked',
+        timestamp: new Date('2024-09-26T06:30:00Z'),
+        status: 'error' as const,
+      },
+      {
+        id: 'act-3',
+        type: 'user_action' as const,
+        title: 'System Initialized',
+        description: 'Welcome to UNICX! Your dashboard is ready.',
+        timestamp: new Date(),
+        user: 'System',
+        status: 'success' as const,
+      }
+    );
+  }
+
+  // Sort activities by timestamp (most recent first)
+  const sortedActivities = activities
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, maxDisplay);
 
   const getActivityIcon = (type: ActivityItem['type'], status?: ActivityItem['status']) => {
     switch (type) {
@@ -142,7 +171,7 @@ export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentAct
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        {activities.length === 0 ? (
+        {sortedActivities.length === 0 ? (
           <div className="p-6 text-center">
             <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-2 text-sm font-medium text-foreground">No Recent Activity</h3>
@@ -153,10 +182,10 @@ export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentAct
         ) : (
           <div className="flow-root">
             <ul role="list" className="-mb-8">
-              {activities.map((activity, index) => (
+              {sortedActivities.map((activity, index) => (
                 <li key={activity.id}>
                   <div className="relative pb-8">
-                    {index !== activities.length - 1 && (
+                    {index !== sortedActivities.length - 1 && (
                       <span
                         className="absolute top-5 left-5 -ml-px h-full w-0.5 bg-border"
                         aria-hidden="true"

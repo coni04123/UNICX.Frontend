@@ -481,6 +481,49 @@ class ApiClient {
   }> {
     return this.get('/dashboard/stats');
   }
+
+  async getRecentActivity(limit?: number): Promise<any[]> {
+    const queryString = limit ? `?limit=${limit}` : '';
+    return this.get(`/dashboard/recent-activity${queryString}`);
+  }
+
+  async getSystemHealth(): Promise<any> {
+    return this.get('/dashboard/system-health');
+  }
+
+  // Audit Logs APIs
+  async getAuditLogs(filters?: {
+    userId?: string;
+    action?: string;
+    resource?: string;
+    resourceId?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ logs: any[]; total: number; limit: number; offset: number }> {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.append('userId', filters.userId);
+    if (filters?.action) params.append('action', filters.action);
+    if (filters?.resource) params.append('resource', filters.resource);
+    if (filters?.resourceId) params.append('resourceId', filters.resourceId);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+
+    const queryString = params.toString();
+    return this.get(`/audit/logs${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAuditStats(days?: number): Promise<any> {
+    const queryString = days ? `?days=${days}` : '';
+    return this.get(`/audit/stats${queryString}`);
+  }
+
+  async getAuditActions(): Promise<string[]> {
+    return this.get('/audit/actions');
+  }
 }
 
 // Export a singleton instance

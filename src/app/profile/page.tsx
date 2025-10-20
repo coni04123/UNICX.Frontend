@@ -263,7 +263,7 @@ export default function ProfilePage() {
             </Card>
 
             {/* Language Preferences */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
                   <LanguageIcon className="h-5 w-5 text-primary" />
@@ -300,10 +300,10 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Notification Preferences */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
                   <BellIcon className="h-5 w-5 text-primary" />
@@ -360,10 +360,10 @@ export default function ProfilePage() {
                   </label>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Security */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <div className="flex items-center space-x-2">
                   <ShieldCheckIcon className="h-5 w-5 text-primary" />
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                   {t('changePassword')}
                 </Button>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

@@ -255,19 +255,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   </Menu.Item>
                   <Menu.Item>
                     {({ active }) => (
-                      <a
-                        href="/settings"
-                        className={`${
-                          active ? 'bg-gray-100' : ''
-                        } flex items-center px-4 py-2 text-sm text-gray-700`}
-                      >
-                        <Cog6ToothIcon className="h-4 w-4 mr-3" />
-                        {t('settings')}
-                      </a>
-                    )}
-                  </Menu.Item>
-                  <Menu.Item>
-                    {({ active }) => (
                       <button
                         onClick={logout}
                         className={`${

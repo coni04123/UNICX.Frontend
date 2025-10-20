@@ -27,9 +27,6 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import {
-  mockDashboardMetrics,
-  mockAlerts,
-  mockAuditLogs,
   currentTenant,
 } from '@/data/mockData';
 
@@ -38,6 +35,7 @@ export default function Dashboard() {
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding, resetOnboarding } = useOnboarding();
   const { roleInfo, canViewAdvancedMetrics } = usePermissions();
   const [metrics, setMetrics] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -49,8 +47,22 @@ export default function Dashboard() {
     try {
       setIsLoading(true);
       setError('');
-      const data = await api.getDashboardStats();
-      setMetrics(data);
+      
+      // Load dashboard metrics and recent activity in parallel
+      const [dashboardResponse, activityResponse] = await Promise.all([
+        api.getDashboardStats(),
+        api.getRecentActivity(10)
+      ]);
+      
+      // Extract data from the response wrapper
+      const dashboardData = dashboardResponse.data || dashboardResponse;
+      const activityData = activityResponse.data || activityResponse;
+      
+      console.log('Dashboard API Response:', dashboardResponse);
+      console.log('Extracted Dashboard Data:', dashboardData);
+      
+      setMetrics(dashboardData);
+      setRecentActivity(activityData);
     } catch (err: any) {
       console.error('Error loading dashboard stats:', err);
       setError(err.message || 'Failed to load dashboard stats');
@@ -105,7 +117,7 @@ export default function Dashboard() {
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {error}
           </div>
-        ) : metrics && (
+        ) : metrics && metrics.entities && metrics.messages && metrics.users ? (
           <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <MetricCard
@@ -194,10 +206,14 @@ export default function Dashboard() {
               </div>
             </div>
           </>
-        )}
+        ) : metrics ? (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md">
+            Dashboard data is incomplete. Please refresh the page.
+          </div>
+        ) : null}
 
         {/* Alerts and Activity */}
-          <RecentActivity auditLogs={mockAuditLogs} />
+        <RecentActivity auditLogs={recentActivity} />
       </div>
     </DashboardLayout>
   );
