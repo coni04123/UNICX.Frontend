@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslations } from '@/lib/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
 import WelcomeBanner from '@/components/onboarding/WelcomeBanner';
@@ -34,7 +34,7 @@ import {
 } from '@/data/mockData';
 
 export default function Dashboard() {
-  const t = useTranslations('dashboard');
+  const t = useTranslation('dashboard');
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding, resetOnboarding } = useOnboarding();
   const { roleInfo, canViewAdvancedMetrics } = usePermissions();
   const [metrics, setMetrics] = useState<any>(null);

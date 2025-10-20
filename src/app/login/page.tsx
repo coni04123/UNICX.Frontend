@@ -248,7 +248,7 @@ export default function LoginPage() {
             </p>
             
             {/* Features with Brazil-themed design */}
-            <div className="grid grid-cols-1 gap-6 pt-8">
+            {/* <div className="grid grid-cols-1 gap-6 pt-8">
               <div className="flex items-center space-x-5 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-brazil hover:shadow-brazil-lg transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-1">
                 <div className="w-16 h-16 bg-gradient-brazil rounded-2xl flex items-center justify-center shadow-brazil">
                   <ChatBubbleLeftRightIcon className="h-8 w-8 text-white" />
@@ -267,7 +267,7 @@ export default function LoginPage() {
                 </div>
                 <span className="text-gray-900 font-bold text-xl">Global Multi-tenant Support</span>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

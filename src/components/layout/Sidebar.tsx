@@ -93,8 +93,8 @@ export default function Sidebar() {
             </div>
           </div>
           <div className="ml-3">
-            <h1 className="text-xl font-bold text-gray-900">2N5</h1>
-            <p className="text-xs text-gray-500">WhatsApp Management</p>
+            <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
+            <p className="text-xs text-gray-500">{t('app.description')}</p>
           </div>
         </div>
       </div>
@@ -180,8 +180,8 @@ export default function Sidebar() {
               <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse-green"></div>
             </div>
             <div className="ml-3 flex-1">
-              <p className="text-sm font-medium text-green-800">System Status</p>
-              <p className="text-xs text-green-600">All systems operational</p>
+              <p className="text-sm font-medium text-green-800">{t('system.status')}</p>
+              <p className="text-xs text-green-600">{t('system.operational')}</p>
             </div>
           </div>
         </div>

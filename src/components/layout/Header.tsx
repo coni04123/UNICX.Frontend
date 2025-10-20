@@ -132,17 +132,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <Popover.Panel className="absolute right-0 z-10 mt-2 w-96 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
+                      <h3 className="text-lg font-medium text-gray-900">{t('notifications.title')}</h3>
                       {criticalAlerts.length > 0 && (
                         <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                          {criticalAlerts.length} Critical
+                          {criticalAlerts.length} {t('notifications.critical')}
                         </span>
                       )}
                     </div>
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                       {unreadAlerts.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-4">
-                          No new notifications
+                          {t('notifications.noNew')}
                         </p>
                       ) : (
                         unreadAlerts.slice(0, 5).map((alert) => (
@@ -192,7 +192,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                           href="/messages"
                           className="text-sm text-primary-600 hover:text-primary-500"
                         >
-                          View all notifications
+                          {t('notifications.viewAll')}
                         </a>
                       </div>
                     )}
@@ -249,7 +249,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         } flex items-center px-4 py-2 text-sm text-gray-700`}
                       >
                         <UserIcon className="h-4 w-4 mr-3" />
-                        Your Profile
+                        {t('profile.title')}
                       </a>
                     )}
                   </Menu.Item>
@@ -275,7 +275,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         } flex items-center w-full text-left px-4 py-2 text-sm text-gray-700`}
                       >
                         <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-                        Sign out
+                        {t('auth.signOut')}
                       </button>
                     )}
                   </Menu.Item>

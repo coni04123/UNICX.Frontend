@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTranslations } from '@/lib/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
@@ -33,8 +33,8 @@ interface FilterOptions {
 }
 
 export default function CommunicationPage() {
-  const t = useTranslations('messages');
-  const tCommon = useTranslations('common');
+  const t = useTranslation('messages');
+  const tCommon = useTranslation('common');
   const { user: currentUser } = useAuth();
   
   // Loading states

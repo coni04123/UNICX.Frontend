@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from '@/lib/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -19,7 +19,7 @@ interface AlertCardProps {
 }
 
 export default function AlertCard({ alerts, maxDisplay = 5 }: AlertCardProps) {
-  const t = useTranslations('alerts');
+  const t = useTranslation('alerts');
   
   const getSeverityIcon = (severity: Alert['severity']) => {
     switch (severity) {

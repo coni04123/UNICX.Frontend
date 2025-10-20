@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslations } from '@/lib/translations';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   CheckCircleIcon,
   BuildingOfficeIcon,
@@ -29,7 +29,7 @@ interface OnboardingFlowProps {
 }
 
 export default function OnboardingFlow({ onClose, onComplete }: OnboardingFlowProps) {
-  const t = useTranslations('common');
+  const t = useTranslation('common');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState({
     // Step 1: Entity Creation
