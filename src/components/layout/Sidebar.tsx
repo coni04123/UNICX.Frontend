@@ -5,28 +5,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePermissions } from '@/hooks/usePermissions';
-import { PermissionGate } from '@/components/PermissionGate';
 import {
   HomeIcon,
-  ChatBubbleLeftRightIcon,
-  EyeIcon,
   BuildingOfficeIcon,
   EnvelopeIcon,
-  CogIcon,
   UsersIcon,
-  ExclamationTriangleIcon,
-  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolidIcon,
-  ChatBubbleLeftRightIcon as ChatSolidIcon,
-  EyeIcon as EyeSolidIcon,
   BuildingOfficeIcon as BuildingSolidIcon,
   EnvelopeIcon as EnvelopeSolidIcon,
-  CogIcon as CogSolidIcon,
   UsersIcon as UsersSolidIcon,
-  ExclamationTriangleIcon as ExclamationSolidIcon,
-  ClipboardDocumentListIcon as ClipboardSolidIcon,
 } from '@heroicons/react/24/solid';
 
 interface NavigationItem {

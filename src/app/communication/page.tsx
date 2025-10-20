@@ -6,13 +6,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   FunnelIcon,
-  ArrowDownTrayIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
   ChevronDownIcon,
   BuildingOfficeIcon,
-  UsersIcon,
-  MapPinIcon,
   ArrowPathIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';

@@ -8,16 +8,14 @@ import { Menu, Transition, Popover } from '@headlessui/react';
 import {
   BellIcon,
   ChevronDownIcon,
-  MagnifyingGlassIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   UserIcon,
-  BuildingOfficeIcon,
   ExclamationTriangleIcon,
   LanguageIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
-import { currentUser, currentTenant, mockTenants, mockAlerts } from '@/data/mockData';
+import { currentUser, mockAlerts } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -31,19 +29,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const { roleInfo } = usePermissions();
   const { language, setLanguage, languages } = useLanguage();
-  const [selectedTenant, setSelectedTenant] = useState(currentTenant);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const unreadAlerts = mockAlerts.filter(alert => alert.status === 'open');
   const criticalAlerts = unreadAlerts.filter(alert => alert.severity === 'critical');
   
   const currentLanguage = languages.find(l => l.code === language) || languages[0];
-
-  const handleTenantSwitch = (tenant: typeof currentTenant) => {
-    setSelectedTenant(tenant);
-    // In a real app, this would trigger tenant context change
-    console.log('Switching to tenant:', tenant.name);
-  };
 
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
@@ -72,74 +62,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 />
               </svg>
             </button>
-
-            {/* Tenant Selector */}
-            <Menu as="div" className="relative ml-4">
-              <Menu.Button className="flex items-center text-sm rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                <span className="font-medium text-gray-900">{selectedTenant.name}</span>
-                <ChevronDownIcon className="h-4 w-4 ml-1" />
-              </Menu.Button>
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute left-0 z-10 mt-2 w-64 origin-top-left rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  {mockTenants.map((tenant) => (
-                    <Menu.Item key={tenant.id}>
-                      {({ active }) => (
-                        <button
-                          onClick={() => handleTenantSwitch(tenant)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } ${
-                            selectedTenant.id === tenant.id ? 'bg-primary-50 text-primary-600' : 'text-gray-900'
-                          } block px-4 py-2 text-sm w-full text-left`}
-                        >
-                          <div>
-                            <p className="font-medium">{tenant.name}</p>
-                            <p className="text-xs text-gray-500">{tenant.domain}</p>
-                            <div className="flex items-center mt-1">
-                              <span
-                                className={`inline-block h-2 w-2 rounded-full mr-2 ${
-                                  tenant.status === 'active'
-                                    ? 'bg-green-400'
-                                    : tenant.status === 'trial'
-                                    ? 'bg-yellow-400'
-                                    : 'bg-red-400'
-                                }`}
-                              />
-                              <span className="text-xs text-gray-500 capitalize">
-                                {tenant.status} • {tenant.subscriptionPlan}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-                    </Menu.Item>
-                  ))}
-                </Menu.Items>
-              </Transition>
-            </Menu>
-
-            {/* Search */}
-            <div className="flex-1 max-w-lg ml-8">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search accounts, messages, entities..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Right section */}
