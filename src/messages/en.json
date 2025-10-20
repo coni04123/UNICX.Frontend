@@ -128,5 +128,26 @@
       "skip": "Skip for now",
       "startGuide": "Start Setup Guide"
     }
+  },
+  "profile": {
+    "title": "Profile",
+    "personalInfo": "Personal Information",
+    "preferences": "Preferences",
+    "notifications": "Notifications",
+    "security": "Security",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "phoneNumber": "Phone Number",
+    "role": "Role",
+    "tenant": "Tenant",
+    "entity": "Entity",
+    "language": "Language",
+    "selectLanguage": "Select your preferred language",
+    "emailNotifications": "Email Notifications",
+    "pushNotifications": "Push Notifications",
+    "whatsappNotifications": "WhatsApp Notifications",
+    "changePassword": "Change Password",
+    "updatedSuccessfully": "Profile updated successfully"
   }
 }

@@ -143,5 +143,26 @@
       "skip": "Omitir por ahora",
       "startGuide": "Iniciar Guía de Configuración"
     }
+  },
+  "profile": {
+    "title": "Perfil",
+    "personalInfo": "Información Personal",
+    "preferences": "Preferencias",
+    "notifications": "Notificaciones",
+    "security": "Seguridad",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "email": "Correo Electrónico",
+    "phoneNumber": "Número de Teléfono",
+    "role": "Rol",
+    "tenant": "Inquilino",
+    "entity": "Entidad",
+    "language": "Idioma",
+    "selectLanguage": "Selecciona tu idioma preferido",
+    "emailNotifications": "Notificaciones por Email",
+    "pushNotifications": "Notificaciones Push",
+    "whatsappNotifications": "Notificaciones de WhatsApp",
+    "changePassword": "Cambiar Contraseña",
+    "updatedSuccessfully": "Perfil actualizado exitosamente"
   }
 }

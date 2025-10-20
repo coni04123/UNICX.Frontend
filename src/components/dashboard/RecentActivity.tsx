@@ -30,6 +30,9 @@ interface RecentActivityProps {
 }
 
 export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentActivityProps) {
+  console.log('RecentActivity received auditLogs:', auditLogs);
+  console.log('auditLogs type:', typeof auditLogs);
+  console.log('auditLogs is array:', Array.isArray(auditLogs));
   // Convert audit logs to activity items
   const convertAuditLogToActivity = (log: any): ActivityItem => {
     const getActivityType = (action: string, resource: string) => {
@@ -76,9 +79,9 @@ export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentAct
     };
   };
 
-  const activities: ActivityItem[] = auditLogs
-    .slice(0, maxDisplay)
-    .map(convertAuditLogToActivity);
+  const activities: ActivityItem[] = Array.isArray(auditLogs) 
+    ? auditLogs.slice(0, maxDisplay).map(convertAuditLogToActivity)
+    : [];
 
   // Add some mock activities if no audit logs are available
   if (activities.length === 0) {

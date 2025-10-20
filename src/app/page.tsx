@@ -49,17 +49,13 @@ export default function Dashboard() {
       setError('');
       
       // Load dashboard metrics and recent activity in parallel
-      const [dashboardResponse, activityResponse] = await Promise.all([
+      const [dashboardData, activityResponse] = await Promise.all([
         api.getDashboardStats(),
         api.getRecentActivity(10)
       ]);
       
-      // Extract data from the response wrapper
-      const dashboardData = dashboardResponse.data || dashboardResponse;
-      const activityData = activityResponse.data || activityResponse;
-      
-      console.log('Dashboard API Response:', dashboardResponse);
-      console.log('Extracted Dashboard Data:', dashboardData);
+      // Extract data from the response wrapper for recent activity
+      const activityData = activityResponse;
       
       setMetrics(dashboardData);
       setRecentActivity(activityData);
