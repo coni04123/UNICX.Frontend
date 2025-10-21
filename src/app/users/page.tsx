@@ -992,8 +992,8 @@ export default function UserManagementPage() {
                             </td>
                           )}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getStatusBadge(user.whatsappSession?.status || 'disconnected')}>
-                              {user.whatsappSession?.status || 'disconnected'}
+                            <span className={getStatusBadge(isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected'))}>
+                              {isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected')}
                             </span>
                           </td>
                           {/* Show WhatsApp & QR Code only for Users, not Tenant Admins */}
