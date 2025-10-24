@@ -1,4 +1,9 @@
 {
+  "app": {
+    "name": "2N5",
+    "description": "WhatsApp Monitoring System",
+    "title": "2N5 - WhatsApp Monitoring Platform"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -26,7 +31,25 @@
     "name": "Name",
     "type": "Type",
     "createdAt": "Created At",
-    "updatedAt": "Updated At"
+    "updatedAt": "Updated At",
+    "welcome": "Welcome back!",
+    "failedToLoad": "Failed to load dashboard stats",
+    "errorLoading": "Error loading dashboard stats",
+    "user": "User",
+    "placeholder": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "noNew": "No new notifications",
+      "critical": "critical",
+      "viewAll": "View all notifications"
+    },
+    "auth": {
+      "signOut": "Sign Out"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -45,7 +68,28 @@
     "recentActivity": "Recent Activity",
     "systemHealth": "System Health",
     "quickActions": "Quick Actions",
-    "communicationCard": "Communication"
+    "communicationCard": "Communication",
+    "welcomeMessage": "Welcome back! Here's what's happening with {tenantName} today.",
+    "metrics": {
+      "totalEntities": "Total Entities",
+      "whatsappMessages": "WhatsApp Messages",
+      "monitoredUsers": "Monitored Users",
+      "entityOverview": "Entity Overview",
+      "communicationOverview": "Communication Overview",
+      "companies": "Companies",
+      "departments": "Departments",
+      "e164Users": "E164 Users",
+      "registrationRate": "Registration Rate",
+      "messages24h": "Messages (24h)",
+      "monitored": "Monitored",
+      "external": "External",
+      "activeConversations": "Active Conversations",
+      "changeFromYesterday": "Change from yesterday",
+      "increase": "increase",
+      "decrease": "decrease"
+    },
+    "incomplete": "Dashboard data is incomplete. Please refresh page.",
+    "refresh": "Refresh Page"
   },
   "entities": {
     "title": "Entities",
@@ -80,7 +124,35 @@
     "sent": "Sent",
     "delivered": "Delivered",
     "read": "Read",
-    "failed": "Failed"
+    "failed": "Failed",
+    "attachment": "Message attachment",
+    "external": "External",
+    "loading": "Loading...",
+    "errorLoadingImage": "Error loading image",
+    "errorLoadingVideo": "Error loading video",
+    "errorLoadingAudio": "Error loading audio"
+  },
+  "communication": {
+    "title": "Communication",
+    "conversations": "Conversations",
+    "messages": "Messages",
+    "searchPlaceholder": "Search conversations...",
+    "noConversations": "No conversations found",
+    "noMessages": "No messages found",
+    "loadMore": "Load more messages",
+    "sendMessage": "Send message",
+    "messagePlaceholder": "Type your message...",
+    "selectConversation": "Select a conversation to view messages",
+    "externalTag": "External",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "older": "Older",
+    "allUsersInSelectedEntity": "All Users in Selected Entity",
+    "allEntityUsers": "All Entity Users"
   },
   "alerts": {
     "accountBlocked": "Account Blocked",
@@ -148,6 +220,39 @@
     "pushNotifications": "Push Notifications",
     "whatsappNotifications": "WhatsApp Notifications",
     "changePassword": "Change Password",
-    "updatedSuccessfully": "Profile updated successfully"
+    "updatedSuccessfully": "Profile updated successfully",
+    "receiveEmailNotifications": "Receive email notifications",
+    "receivePushNotifications": "Receive push notifications",
+    "receiveWhatsappNotifications": "Receive WhatsApp notifications"
+  },
+  "whatsapp": {
+    "title": "WhatsApp",
+    "status": {
+      "ready": "Connected",
+      "connecting": "Connecting",
+      "disconnected": "Disconnected",
+      "failed": "Failed",
+      "qr_ready": "QR Ready",
+      "qr_expired": "QR Expired"
+    },
+    "qr": {
+      "scan": "Scan QR Code",
+      "expires": "Expires in",
+      "expired": "QR Code expired",
+      "regenerate": "Regenerate QR Code"
+    },
+    "health": {
+      "noData": "No Health Data",
+      "healthy": "Healthy",
+      "blocked": "Account Blocked",
+      "failureCount": "Failed {{count}}x",
+      "lastCheck": "Last Check",
+      "nextCheck": "Next Check",
+      "successRate": "Success Rate",
+      "consecutiveFailures": "Consecutive Failures",
+      "alertTriggered": "Alert Triggered - Account May Be Blocked",
+      "clickToCheck": "Click to trigger health check",
+      "checkInProgress": "Health check in progress..."
+    }
   }
 }

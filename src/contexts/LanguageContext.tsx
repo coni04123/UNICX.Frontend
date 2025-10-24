@@ -13,10 +13,10 @@ export interface LanguageOption {
 
 export const languages: LanguageOption[] = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷' },
-  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+  // { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  // { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷' },
+  // { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  // { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
 ];
 
 interface LanguageContextType {

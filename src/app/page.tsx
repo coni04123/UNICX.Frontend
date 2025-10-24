@@ -32,6 +32,7 @@ import {
 
 export default function Dashboard() {
   const t = useTranslation('dashboard');
+  const tCommon = useTranslation('common');
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding, resetOnboarding } = useOnboarding();
   const { roleInfo, canViewAdvancedMetrics } = usePermissions();
   const [metrics, setMetrics] = useState<any>(null);
@@ -49,19 +50,30 @@ export default function Dashboard() {
       setError('');
       
       // Load dashboard metrics and recent activity in parallel
-      const [dashboardData, activityResponse] = await Promise.all([
+      const [dashboardResponse, activityResponse] = await Promise.all([
         api.getDashboardStats(),
         api.getRecentActivity(10)
       ]);
       
-      // Extract data from the response wrapper for recent activity
-      const activityData = activityResponse;
+      // Extract data from the response wrappers
+      const dashboardData = (dashboardResponse as any).data || dashboardResponse;
+      const activityData = (activityResponse as any).data || activityResponse;
       
-      setMetrics(dashboardData);
-      setRecentActivity(activityData);
+      // Ensure the data structure is correct
+      if (dashboardData && typeof dashboardData === 'object' && 'success' in dashboardData) {
+        setMetrics(dashboardData.data);
+      } else {
+        setMetrics(dashboardData);
+      }
+      
+      if (activityData && typeof activityData === 'object' && 'success' in activityData) {
+        setRecentActivity(activityData.data);
+      } else {
+        setRecentActivity(activityData);
+      }
     } catch (err: any) {
       console.error('Error loading dashboard stats:', err);
-      setError(err.message || 'Failed to load dashboard stats');
+      setError(err.message || tCommon('failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -86,21 +98,8 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
             <p className="text-muted-foreground">
-              Welcome back! Here's what's happening with {currentTenant.name} today.
+              {t('welcomeMessage').replace('{tenantName}', currentTenant.name)}
             </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant={roleInfo.badgeColor} className="text-xs">
-              {roleInfo.label}
-            </Badge>
-            <Badge variant="secondary" className="bg-sage-100 text-sage-800">
-              {currentTenant.subscriptionPlan}
-            </Badge>
-            <PermissionGate permission="viewAdvancedMetrics">
-              <Button variant="outline" size="sm">
-                View Reports
-              </Button>
-            </PermissionGate>
           </div>
         </div>
 
@@ -117,21 +116,21 @@ export default function Dashboard() {
           <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <MetricCard
-                title="Total Entities"
+                title={t('metrics.totalEntities')}
                 value={metrics.entities.total}
                 change={metrics.entities.change}
                 icon={BuildingOfficeIcon}
                 iconColor="bg-primary-500"
               />
               <MetricCard
-                title="WhatsApp Messages"
+                title={t('metrics.whatsappMessages')}
                 value={metrics.messages.sent24h.toLocaleString()}
                 change={metrics.messages.change}
                 icon={EnvelopeIcon}
                 iconColor="bg-green-500"
               />
               <MetricCard
-                title="Monitored Users"
+                title={t('metrics.monitoredUsers')}
                 value={metrics.users.monitored.toString()}
                 change={metrics.users.change}
                 icon={UsersIcon}
@@ -144,24 +143,24 @@ export default function Dashboard() {
               {/* Entity Overview */}
               <div className="card">
                 <div className="card-header">
-                  <h3 className="text-lg font-medium text-gray-900">Entity Overview</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('metrics.entityOverview')}</h3>
                 </div>
                 <div className="card-body">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Companies</span>
+                      <span className="text-sm text-gray-600">{t('metrics.companies')}</span>
                       <span className="text-sm font-medium text-gray-900">{metrics.entities.companies}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Departments</span>
+                      <span className="text-sm text-gray-600">{t('metrics.departments')}</span>
                       <span className="text-sm font-medium text-gray-900">{metrics.entities.departments}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">E164 Users</span>
+                      <span className="text-sm text-gray-600">{t('metrics.e164Users')}</span>
                       <span className="text-sm font-medium text-green-600">{metrics.entities.e164Users}</span>
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
-                      <span className="text-sm font-medium text-gray-900">Registration Rate</span>
+                      <span className="text-sm font-medium text-gray-900">{t('metrics.registrationRate')}</span>
                       <span className="text-sm font-bold text-primary-600">{metrics.entities.registrationRate}%</span>
                     </div>
                   </div>
@@ -171,30 +170,30 @@ export default function Dashboard() {
               {/* Communication Overview */}
               <div className="card">
                 <div className="card-header">
-                  <h3 className="text-lg font-medium text-gray-900">Communication Overview</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('metrics.communicationOverview')}</h3>
                 </div>
                 <div className="card-body">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Messages (24h)</span>
+                      <span className="text-sm text-gray-600">{t('metrics.messages24h')}</span>
                       <span className="text-sm font-medium text-gray-900">
                         {metrics.messages.sent24h.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Monitored</span>
+                      <span className="text-sm text-gray-600">{t('metrics.monitored')}</span>
                       <span className="text-sm font-medium text-green-600">
                         {metrics.messages.monitored.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">External</span>
+                      <span className="text-sm text-gray-600">{t('metrics.external')}</span>
                       <span className="text-sm font-medium text-orange-600">
                         {metrics.messages.external.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
-                      <span className="text-sm font-medium text-gray-900">Active Conversations</span>
+                      <span className="text-sm font-medium text-gray-900">{t('metrics.activeConversations')}</span>
                       <span className="text-sm font-bold text-primary-600">{metrics.messages.activeConversations}</span>
                     </div>
                   </div>
@@ -204,7 +203,7 @@ export default function Dashboard() {
           </>
         ) : metrics ? (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md">
-            Dashboard data is incomplete. Please refresh the page.
+            {t('incomplete')}
           </div>
         ) : null}
 

@@ -379,6 +379,14 @@ class ApiClient {
     return this.post(`/users/${userId}/regenerate-qr`, {});
   }
 
+  async getUserHealthStatus(userId: string): Promise<any> {
+    return this.get(`/users/${userId}/health-status`);
+  }
+
+  async triggerUserHealthCheck(userId: string): Promise<any> {
+    return this.post(`/users/${userId}/trigger-health-check`, {});
+  }
+
   // WhatsApp APIs
   async createWhatsAppSession(): Promise<any> {
     return this.post('/whatsapp/sessions', {});
@@ -414,6 +422,7 @@ class ApiClient {
     conversationId?: string;
     tenantId?: string;
     entityId?: string;
+    isExternal?: boolean;
   }): Promise<{
     messages: any[];
     total: number;
@@ -435,9 +444,38 @@ class ApiClient {
     if (filters?.conversationId) params.append('conversationId', filters.conversationId);
     if (filters?.tenantId) params.append('tenantId', filters.tenantId);
     if (filters?.entityId) params.append('entityId', filters.entityId);
+    if (filters?.isExternal !== undefined) params.append('isExternal', filters.isExternal.toString());
 
     const queryString = params.toString();
     return this.get(`/whatsapp/messages${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getExternalWhatsAppMessages(filters?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    tenantId?: string;
+    entityId?: string;
+  }): Promise<{
+    messages: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.tenantId) params.append('tenantId', filters.tenantId);
+    if (filters?.entityId) params.append('entityId', filters.entityId);
+
+    const queryString = params.toString();
+    return this.get(`/whatsapp/messages/external${queryString ? `?${queryString}` : ''}`);
   }
 
   async getWhatsAppConversations(): Promise<any[]> {

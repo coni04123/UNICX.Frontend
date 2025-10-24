@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { api } from '@/lib/api';
+import WhatsAppHealthBadge from '@/components/whatsapp/WhatsAppHealthBadge';
 import {
   PlusIcon,
   UserIcon,
@@ -27,7 +29,20 @@ import {
   ArrowDownTrayIcon,
   CheckIcon,
   UserGroupIcon,
+  ShieldCheckIcon,
+  ShieldExclamationIcon,
+  ExclamationTriangleIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
+
+interface WhatsAppHealthStatus {
+  lastCheck: string;
+  lastStatus: 'success' | 'failed' | 'warning';
+  consecutiveFailures: number;
+  successRate: number;
+  recentChecks: number;
+  alertTriggered: boolean;
+}
 
 interface WhatsAppSession {
   status: string;
@@ -42,6 +57,7 @@ interface WhatsAppSession {
   messagesReceived: number;
   messagesDelivered: number;
   messagesFailed: number;
+  healthStatus?: WhatsAppHealthStatus;
 }
 
 interface User {
@@ -95,6 +111,7 @@ interface EditUserForm {
 
 export default function UserManagementPage() {
   const { user: currentUser } = useAuth();
+  const { canManageUsers } = usePermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -136,6 +153,7 @@ export default function UserManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('TenantAdmin'); // 'TenantAdmin' or 'User' or ''
   const [whatsappFilter, setWhatsappFilter] = useState<string>('');
+  const [healthCheckLoading, setHealthCheckLoading] = useState<string | null>(null);
   
   // Determine if we're viewing tenant admins only
   const isViewingTenantAdmins = roleFilter === 'TenantAdmin';
@@ -151,6 +169,37 @@ export default function UserManagementPage() {
     role: 'User',
   });
   const [isInviting, setIsInviting] = useState(false);
+
+  // Handle health check trigger
+  const handleTriggerHealthCheck = async (userId: string) => {
+    try {
+      setHealthCheckLoading(userId);
+      await api.triggerUserHealthCheck(userId);
+      
+      // Refresh user's health status
+      const response = await api.getUserHealthStatus(userId);
+      
+      // Update user's health status in the list
+      setUsers(users.map(user => {
+        if (user._id === userId && user.whatsappSession) {
+          return {
+            ...user,
+            whatsappSession: {
+              ...user.whatsappSession,
+              healthStatus: response.data,
+            },
+          };
+        }
+        return user;
+      }));
+
+      setSuccess('Health check completed');
+    } catch (error: any) {
+      setError(error.message || 'Failed to trigger health check');
+    } finally {
+      setHealthCheckLoading(null);
+    }
+  };
 
   // Load data on mount
   useEffect(() => {
@@ -187,11 +236,35 @@ export default function UserManagementPage() {
         filters.entityId = currentUser.entityId;
       }
 
-      const data = await api.getUsers(filters);
-      
+      // Get users
+      const response = await api.getUsers(filters);
+      const { users: fetchedUsers, total, page, totalPages } = response;
+
+      // Get health status for each user with active WhatsApp session
+      const usersWithHealth = await Promise.all(
+        fetchedUsers.map(async (user) => {
+          if (user.whatsappSession?.status === 'ready') {
+            try {
+              const healthResponse = await api.getUserHealthStatus(user._id);
+              return {
+                ...user,
+                whatsappSession: {
+                  ...user.whatsappSession,
+                  healthStatus: healthResponse.data,
+                },
+              };
+            } catch (error) {
+              console.error(`Failed to get health status for user ${user._id}:`, error);
+              return user;
+            }
+          }
+          return user;
+        })
+      );
+
       // Get WhatsApp sessions for users with phone numbers
       const usersWithSessions = await Promise.all(
-        data.users.map(async (user) => {
+        usersWithHealth.map(async (user) => {
           if (user.phoneNumber) {
             try {
               const sessionId = `whatsapp-${user.phoneNumber.slice(1)}`;
@@ -210,9 +283,9 @@ export default function UserManagementPage() {
       );
 
       setUsers(usersWithSessions);
-      setTotalUsers(data.total);
-      setTotalPages(data.totalPages);
-      setCurrentPage(data.page);
+      setTotalUsers(response.total);
+      setTotalPages(response.totalPages);
+      setCurrentPage(response.page);
     } catch (err: any) {
       console.error('Error loading users:', err);
       setError(err.message || 'Failed to load users');
@@ -829,7 +902,6 @@ export default function UserManagementPage() {
                   <button
                     onClick={() => {
                       setStatusFilter('');
-                      setRoleFilter('');
                       setWhatsappFilter('');
                       setSearchQuery('');
                       setSelectedEntityPath('');
@@ -992,9 +1064,19 @@ export default function UserManagementPage() {
                             </td>
                           )}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getStatusBadge(isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected'))}>
-                              {isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected')}
-                            </span>
+                            <div className="flex flex-col space-y-2">
+                              <span className={getStatusBadge(isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected'))}>
+                                {isViewingTenantAdmins ? (user.registrationStatus || 'invited') : (user.whatsappSession?.status || 'disconnected')}
+                              </span>
+                              {!isViewingTenantAdmins && user.whatsappSession?.status === 'ready' && (
+                                <WhatsAppHealthBadge
+                                  healthStatus={user.whatsappSession.healthStatus}
+                                  onTriggerCheck={() => handleTriggerHealthCheck(user._id)}
+                                  isLoading={healthCheckLoading === user._id}
+                                  canTriggerCheck={canManageUsers}
+                                />
+                              )}
+                            </div>
                           </td>
                           {/* Show WhatsApp & QR Code only for Users, not Tenant Admins */}
                           {!isViewingTenantAdmins && (
@@ -1520,7 +1602,9 @@ export default function UserManagementPage() {
                     <div className="border rounded-lg p-8 mb-6">
                       {/* Display actual QR code image */}
                       <img 
-                        src={`data:image/png;base64,${selectedUserQR.whatsappSession.qrCode}`}
+                        src={selectedUserQR.whatsappSession.qrCode.startsWith('data:') 
+                          ? selectedUserQR.whatsappSession.qrCode 
+                          : `data:image/png;base64,${selectedUserQR.whatsappSession.qrCode}`}
                         alt="WhatsApp QR Code"
                         className="w-48 h-48 mx-auto"
                       />
@@ -1627,7 +1711,7 @@ export default function UserManagementPage() {
                             whatsappSession: {
                               ...selectedUserQR.whatsappSession,
                               qrCode: qrData.qrCode,
-                              qrCodeExpiresAt: qrData.expiresAt.toISOString(),
+                              qrCodeExpiresAt: new Date(qrData.expiresAt).toISOString(),
                               sessionId: qrData.sessionId,
                               status: 'connecting',
                               messagesSent: selectedUserQR.whatsappSession?.messagesSent || 0,

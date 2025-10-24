@@ -125,23 +125,6 @@ export default function ProfilePage() {
                     </Badge>
                   </div>
                 </div>
-
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-center text-sm">
-                    <BuildingOfficeIcon className="h-5 w-5 text-muted-foreground mr-3" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t('entity')}</p>
-                      <p className="font-medium">{user?.entityPath || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <PhoneIcon className="h-5 w-5 text-muted-foreground mr-3" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">{t('phoneNumber')}</p>
-                      <p className="font-medium">{user?.phoneNumber || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -197,7 +180,7 @@ export default function ProfilePage() {
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       disabled={!isEditing}
-                      placeholder="John"
+                      placeholder={tCommon('placeholder.firstName')}
                     />
                   </div>
                   <div className="space-y-2">
@@ -206,7 +189,7 @@ export default function ProfilePage() {
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       disabled={!isEditing}
-                      placeholder="Doe"
+                      placeholder={tCommon('placeholder.lastName')}
                     />
                   </div>
                 </div>
@@ -221,22 +204,7 @@ export default function ProfilePage() {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       disabled={!isEditing}
                       className="pl-10"
-                      placeholder="john.doe@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">{t('phoneNumber')}</label>
-                  <div className="relative">
-                    <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      type="tel"
-                      value={formData.phoneNumber}
-                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                      disabled={!isEditing}
-                      className="pl-10"
-                      placeholder="+1234567890"
+                      placeholder={tCommon('placeholder.email')}
                     />
                   </div>
                 </div>
@@ -245,15 +213,7 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">{t('role')}</label>
                     <Input
-                      value={user?.role || 'User'}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('tenant')}</label>
-                    <Input
-                      value={user?.tenantId || 'N/A'}
+                      value={user?.role || tCommon('user')}
                       disabled
                       className="bg-muted"
                     />
@@ -315,7 +275,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{t('emailNotifications')}</p>
-                    <p className="text-sm text-muted-foreground">Receive email notifications</p>
+                    <p className="text-sm text-muted-foreground">{t('receiveEmailNotifications')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -331,7 +291,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{t('pushNotifications')}</p>
-                    <p className="text-sm text-muted-foreground">Receive push notifications</p>
+                    <p className="text-sm text-muted-foreground">{t('receivePushNotifications')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -347,7 +307,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">{t('whatsappNotifications')}</p>
-                    <p className="text-sm text-muted-foreground">Receive WhatsApp notifications</p>
+                    <p className="text-sm text-muted-foreground">{t('receiveWhatsappNotifications')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input

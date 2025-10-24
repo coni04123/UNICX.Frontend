@@ -39,6 +39,16 @@ export interface Message {
     isStarred: boolean;
     mediaType?: string;
     caption?: string;
+    // External number metadata
+    senderContactName?: string;
+    senderContactPhone?: string;
+    isExternalSender?: boolean;
+    registeredUserInfo?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: string;
+    } | null;
   };
   status: MessageStatus;
   sentAt: string;
@@ -53,6 +63,10 @@ export interface Message {
   entityId: string;
   entityPath?: string;
   tenantId: string;
+  // External number detection fields
+  isExternalNumber?: boolean;
+  externalSenderName?: string;
+  externalSenderPhone?: string;
   isStarred: boolean;
   isArchived: boolean;
   isActive: boolean;

@@ -14,6 +14,9 @@ import {
   ExclamationTriangleIcon,
   LanguageIcon,
   CheckIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { currentUser, mockAlerts } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,14 +29,39 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const t = useTranslation('common');
+  const tProfile = useTranslation('profile');
   const { user, logout } = useAuth();
-  const { roleInfo } = usePermissions();
+  const { roleInfo, role } = usePermissions();
   const { language, setLanguage, languages } = useLanguage();
 
   const unreadAlerts = mockAlerts.filter(alert => alert.status === 'open');
   const criticalAlerts = unreadAlerts.filter(alert => alert.severity === 'critical');
   
   const currentLanguage = languages.find(l => l.code === language) || languages[0];
+
+  // Get role icon based on user role
+  const getRoleIcon = (userRole: string) => {
+    switch (userRole) {
+      case 'SystemAdmin':
+        return <ShieldCheckIcon className="h-4 w-4" />;
+      case 'TenantAdmin':
+        return <UserGroupIcon className="h-4 w-4" />;
+      default:
+        return <UserIcon className="h-4 w-4" />;
+    }
+  };
+
+  // Get role color based on user role
+  const getRoleColor = (userRole: string) => {
+    switch (userRole) {
+      case 'SystemAdmin':
+        return 'text-red-600 bg-red-50 border-red-200';
+      case 'TenantAdmin':
+        return 'text-orange-600 bg-orange-50 border-orange-200';
+      default:
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+    }
+  };
 
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
@@ -203,32 +231,29 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
             {/* User menu */}
             <Menu as="div" className="relative">
-              <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                {currentUser.avatar ? (
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src={currentUser.avatar}
-                    alt={`${currentUser.firstName} ${currentUser.lastName}`}
-                  />
-                ) : (
-                  <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    <UserIcon className="h-4 w-4 text-gray-600" />
+              <Menu.Button className="flex items-center text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover:bg-gray-50 px-3 py-2 transition-colors duration-200">
+                <div className="flex items-center space-x-3">
+                  {/* User Info */}
+                  <div className="text-left">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {user?.firstName && user?.lastName 
+                          ? `${user.firstName} ${user.lastName}`
+                          : user?.email?.split('@')[0] || 'User'
+                        }
+                      </p>
+                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(role)}`}>
+                        {getRoleIcon(role)}
+                        {/* <span className="ml-1">{roleInfo.label}</span> */}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1 text-xs text-gray-500">
+                      <EnvelopeIcon className="h-3 w-3" />
+                      <span className="truncate max-w-32">{user?.email}</span>
+                    </div>
                   </div>
-                )}
-                <div className="ml-3 text-left hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.email?.split('@')[0] || 'User'}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={roleInfo.badgeColor} className="text-xs">
-                      {user?.role || 'User'}
-                    </Badge>
-                    {/* <Badge variant="outline" className="text-xs">
-                      {user?.tenant || '2N5'}
-                    </Badge> */}
-                  </div>
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400" />
                 </div>
-                <ChevronDownIcon className="h-4 w-4 ml-2 text-gray-400" />
               </Menu.Button>
               <Transition
                 as={Fragment}
@@ -239,17 +264,40 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
               >
-                <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <Menu.Items className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-lg bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {/* User Info Header */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${getRoleColor(role).replace('text-', 'bg-').replace('bg-red-600', 'bg-red-100').replace('bg-orange-600', 'bg-orange-100').replace('bg-blue-600', 'bg-blue-100')}`}>
+                        {getRoleIcon(role)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user?.firstName && user?.lastName 
+                            ? `${user.firstName} ${user.lastName}`
+                            : user?.email?.split('@')[0] || 'User'
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                        <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${getRoleColor(role)}`}>
+                          {getRoleIcon(role)}
+                          <span className="ml-1">{roleInfo.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Menu Items */}
                   <Menu.Item>
                     {({ active }) => (
                       <a
                         href="/profile"
                         className={`${
-                          active ? 'bg-gray-100' : ''
-                        } flex items-center px-4 py-2 text-sm text-gray-700`}
+                          active ? 'bg-gray-50' : ''
+                        } flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150`}
                       >
-                        <UserIcon className="h-4 w-4 mr-3" />
-                        {t('profile.title')}
+                        <UserIcon className="h-4 w-4 mr-3 text-gray-400" />
+                        {tProfile('title')}
                       </a>
                     )}
                   </Menu.Item>
@@ -258,10 +306,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       <button
                         onClick={logout}
                         className={`${
-                          active ? 'bg-gray-100' : ''
-                        } flex items-center w-full text-left px-4 py-2 text-sm text-gray-700`}
+                          active ? 'bg-gray-50' : ''
+                        } flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150`}
                       >
-                        <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                        <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3 text-gray-400" />
                         {t('auth.signOut')}
                       </button>
                     )}

@@ -34,7 +34,20 @@ export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentAct
   console.log('auditLogs type:', typeof auditLogs);
   console.log('auditLogs is array:', Array.isArray(auditLogs));
   // Convert audit logs to activity items
-  const convertAuditLogToActivity = (log: any): ActivityItem => {
+const convertAuditLogToActivity = (log: any): ActivityItem => {
+    // Add safety checks for the log object
+    if (!log || typeof log !== 'object') {
+      return {
+        id: 'unknown',
+        type: 'user_action',
+        title: 'Unknown Activity',
+        description: 'Activity data is unavailable',
+        timestamp: new Date(),
+        user: 'System',
+        status: 'info',
+      };
+    }
+
     const getActivityType = (action: string, resource: string) => {
       if (action === 'login' || action === 'logout') return 'system';
       if (action === 'create' || action === 'update' || action === 'delete') return 'user_action';
@@ -58,62 +71,52 @@ export default function RecentActivity({ auditLogs, maxDisplay = 10 }: RecentAct
     };
 
     const getTitle = (action: string, resource: string) => {
-      const actionText = action.charAt(0).toUpperCase() + action.slice(1);
-      const resourceText = resource.charAt(0).toUpperCase() + resource.slice(1);
+      const actionText = action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Unknown';
+      const resourceText = resource ? resource.charAt(0).toUpperCase() + resource.slice(1) : 'Resource';
       return `${actionText} ${resourceText}`;
     };
 
     const getDescription = (action: string, resource: string, metadata: any) => {
       if (metadata?.details) return metadata.details;
-      return `${action} operation performed on ${resource}`;
+      const actionStr = action || 'Unknown';
+      const resourceStr = resource || 'resource';
+      return `${actionStr} operation performed on ${resourceStr}`;
     };
 
     return {
-      id: log.id,
+      id: log.id || 'unknown',
       type: getActivityType(log.action, log.resource),
       title: getTitle(log.action, log.resource),
       description: getDescription(log.action, log.resource, log.metadata),
-      timestamp: new Date(log.timestamp),
-      user: log.userEmail,
+      timestamp: new Date(log.timestamp || Date.now()),
+      user: log.userEmail || log.user || 'System',
       status: getStatus(log.action),
     };
   };
 
   const activities: ActivityItem[] = Array.isArray(auditLogs) 
-    ? auditLogs.slice(0, maxDisplay).map(convertAuditLogToActivity)
+    ? auditLogs.slice(0, maxDisplay).map((log) => {
+        try {
+          return convertAuditLogToActivity(log);
+        } catch (error) {
+          console.error('Error converting audit log to activity:', error, log);
+          return {
+            id: 'error',
+            type: 'user_action',
+            title: 'Error Processing Activity',
+            description: 'Failed to process activity data',
+            timestamp: new Date(),
+            user: 'System',
+            status: 'error',
+          };
+        }
+      })
     : [];
 
-  // Add some mock activities if no audit logs are available
-  if (activities.length === 0) {
-    activities.push(
-      {
-        id: 'act-1',
-        type: 'campaign_update' as const,
-        title: 'Q4 Product Launch Campaign Started',
-        description: 'Campaign targeting 500 enterprise customers is now running',
-        timestamp: new Date('2024-09-26T08:00:00Z'),
-        user: 'Sarah Johnson',
-        status: 'success' as const,
-      },
-      {
-        id: 'act-2',
-        type: 'alert' as const,
-        title: 'WhatsApp Account Blocked',
-        description: 'Marketing Campaigns account (+1-555-0125) has been blocked',
-        timestamp: new Date('2024-09-26T06:30:00Z'),
-        status: 'error' as const,
-      },
-      {
-        id: 'act-3',
-        type: 'user_action' as const,
-        title: 'System Initialized',
-        description: 'Welcome to UNICX! Your dashboard is ready.',
-        timestamp: new Date(),
-        user: 'System',
-        status: 'success' as const,
-      }
-    );
-  }
+  // Don't add mock activities - show empty state instead
+  // if (activities.length === 0) {
+  //   activities.push(...mockup activities);
+  // }
 
   // Sort activities by timestamp (most recent first)
   const sortedActivities = activities

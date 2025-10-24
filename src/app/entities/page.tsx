@@ -308,9 +308,7 @@ export default function EntityStructurePage() {
     return (
       <div key={entity._id} className="select-none">
         <div
-          className={`flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
-            depth === 0 ? 'bg-primary-50' : ''
-          }`}
+          className={`flex items-center py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors`}
           style={{ marginLeft: `${depth * 20}px` }}
         >
           {/* Expand/Collapse Button */}

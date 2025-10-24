@@ -16,6 +16,9 @@ import {
 import { api } from '@/lib/api';
 import { Message, MessageDirection, MessageStatus, MessageType } from '@/types/messages';
 import { Entity } from '@/types/entities';
+import AuthenticatedImage from '@/components/common/AuthenticatedImage';
+import AuthenticatedVideo from '@/components/common/AuthenticatedVideo';
+import AuthenticatedAudio from '@/components/common/AuthenticatedAudio';
 
 interface FilterOptions {
   entityUserNumber?: string;
@@ -30,10 +33,11 @@ interface FilterOptions {
   messageType?: MessageType | 'all';
   direction?: MessageDirection | 'both';
   registrationStatus?: string;
+  isExternal?: boolean;
 }
 
 export default function CommunicationPage() {
-  const t = useTranslation('messages');
+  const t = useTranslation('communication');
   const tCommon = useTranslation('common');
   const { user: currentUser } = useAuth();
   
@@ -67,7 +71,8 @@ export default function CommunicationPage() {
     timeRange: { type: 'last_days', value: 0 },
     messageType: 'all',
     direction: 'both',
-    registrationStatus: 'all'
+    registrationStatus: 'all',
+    isExternal: undefined
   });
   const [showWhatsAppFilters, setShowWhatsAppFilters] = useState(false);
 
@@ -128,6 +133,10 @@ export default function CommunicationPage() {
         filters.from = whatsappFilters.entityUserNumber;
       }
 
+      if (whatsappFilters.isExternal !== undefined) {
+        filters.isExternal = whatsappFilters.isExternal;
+      }
+
       if (whatsappFilters.timeRange) {
         if (whatsappFilters.timeRange.type === 'date_range') {
           if (whatsappFilters.timeRange.startDate) {
@@ -165,7 +174,7 @@ export default function CommunicationPage() {
 
     } catch (err: any) {
       console.error('Error loading messages:', err);
-      setError(err.message || 'Failed to load messages');
+      setError(err.message || tCommon('failedToLoad'));
     } finally {
       setIsLoadingMessages(false);
     }
@@ -541,7 +550,8 @@ export default function CommunicationPage() {
                         timeRange: { type: 'last_days', value: 0 },
                         messageType: 'all',
                         direction: 'both',
-                        registrationStatus: 'all'
+                        registrationStatus: 'all',
+                        isExternal: undefined
                       });
                       setSelectedEntityPath('');
                     }}
@@ -552,7 +562,7 @@ export default function CommunicationPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Entity User Number Filter */}
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Entity User Number (E164)
                       {selectedEntityPath && (
@@ -567,7 +577,7 @@ export default function CommunicationPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">
-                        {selectedEntityPath ? `All Users in Selected Entity` : 'All Entity Users'}
+                        {selectedEntityPath ? t('allUsersInSelectedEntity') : t('allEntityUsers')}
                       </option>
                       {usersInSelectedPath.map(user => (
                         <option key={user.id} value={user.e164Number}>
@@ -575,36 +585,8 @@ export default function CommunicationPage() {
                         </option>
                       ))}
                     </select>
-                  </div>
-
-                  {/* Entity Path Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Entity Structure Part
-                    </label>
-                    <select
-                      value={selectedEntityPath || whatsappFilters.entityPath || ''}
-                      onChange={(e) => {
-                        setWhatsappFilters(prev => ({ ...prev, entityPath: e.target.value }));
-                        setSelectedEntityPath(e.target.value);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="">All Entity Parts</option>
-                      {entities.map((entity: Entity) => (
-                        <option key={entity._id} value={entity.path}>
-                          {entity.type === 'entity' ? '🏢' : entity.type === 'company' ? '🏬' : '👥'} {entity.name}
-                        </option>
-                      ))}
-                    </select>
-                    {/* {selectedEntityPath && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Currently viewing: {selectedEntityPath}
-                      </p>
-                    )} */}
-                  </div>
-                  {/* <div>
                   </div> */}
+
 
                   {/* Enhanced E164 Number Filter */}
                   <div>
@@ -617,6 +599,28 @@ export default function CommunicationPage() {
                       onChange={(e) => setWhatsappFilters(prev => ({ ...prev, e164Number: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
+                  </div>
+
+                  {/* External Numbers Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      External Numbers
+                    </label>
+                    <select
+                      value={whatsappFilters.isExternal === undefined ? 'all' : whatsappFilters.isExternal ? 'external' : 'registered'}
+                      onChange={(e) => {
+                        const value = e.target.value === 'all' ? undefined : e.target.value === 'external';
+                        setWhatsappFilters(prev => ({ ...prev, isExternal: value }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="all">All Messages</option>
+                      <option value="external">External Numbers Only</option>
+                      <option value="registered">Registered Users Only</option>
+                    </select>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Filter by external (unregistered) vs registered users
+                    </div>
                   </div>
 
                   {/* Enhanced Time Range Filter */}
@@ -685,6 +689,8 @@ export default function CommunicationPage() {
                     </div>
                   </div>
 
+                  
+
                   {/* Message Direction Filter */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -722,7 +728,7 @@ export default function CommunicationPage() {
                   </div>
 
                   {/* Registration Status Filter */}
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Registration Status
                     </label>
@@ -740,7 +746,9 @@ export default function CommunicationPage() {
                     <div className="mt-1 text-xs text-gray-500">
                       Filter by registration status of message participants
                     </div>
-                  </div>
+                  </div> */}
+
+                  
                 </div>
               </div>
             )}
@@ -803,8 +811,17 @@ export default function CommunicationPage() {
                               <div className="flex items-center space-x-2 flex-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {senderInfo ? `${senderInfo.firstName} ${senderInfo.lastName}` : message.from}
+                                    {message.isExternalNumber 
+                                      ? (message.externalSenderName || message.from)
+                                      : (senderInfo ? `${senderInfo.firstName} ${senderInfo.lastName}` : message.from)
+                                    }
                                   </span>
+                                  {/* External Tag */}
+                                  {message.isExternalNumber && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      External
+                                    </span>
+                                  )}
                                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                                     {message.from}
                                   </span>
@@ -814,6 +831,12 @@ export default function CommunicationPage() {
                                   <span className="text-sm font-medium text-gray-700">
                                     {receiverInfo ? `${receiverInfo.firstName} ${receiverInfo.lastName}` : message.to}
                                   </span>
+                                  {/* Registered User Tag */}
+                                  {receiverInfo && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Registered
+                                    </span>
+                                  )}
                                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                                     {message.to}
                                   </span>
@@ -893,20 +916,20 @@ export default function CommunicationPage() {
                                           : ''
                                       }`}>
                                         {message.type === MessageType.IMAGE ? (
-                                          <img 
+                                          <AuthenticatedImage 
                                             src={message.mediaUrl} 
                                             alt="Message attachment" 
                                             className="max-w-sm w-full object-cover rounded-lg" 
                                           />
                                         ) : message.type === MessageType.VIDEO ? (
-                                          <video 
+                                          <AuthenticatedVideo 
                                             src={message.mediaUrl} 
                                             controls 
                                             className="max-w-sm w-full rounded-lg" 
                                           />
                                         ) : message.type === MessageType.AUDIO ? (
                                           <div className="bg-gray-50 p-3 rounded-lg">
-                                            <audio 
+                                            <AuthenticatedAudio 
                                               src={message.mediaUrl} 
                                               controls 
                                               className="w-full max-w-sm" 

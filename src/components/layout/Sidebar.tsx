@@ -31,6 +31,7 @@ interface NavigationItem {
 
 export default function Sidebar() {
   const t = useTranslation('navigation');
+  const tApp = useTranslation('app');
   const pathname = usePathname();
   const { canAccessRoute } = usePermissions();
 
@@ -93,8 +94,8 @@ export default function Sidebar() {
             </div>
           </div>
           <div className="ml-3">
-            <h1 className="text-xl font-bold text-gray-900">{t('app.name')}</h1>
-            <p className="text-xs text-gray-500">{t('app.description')}</p>
+            <h1 className="text-xl font-bold text-gray-900">{tApp('name')}</h1>
+            <p className="text-xs text-gray-500">{tApp('description')}</p>
           </div>
         </div>
       </div>
@@ -173,7 +174,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Status indicator */}
-      <div className="flex-shrink-0 px-2 mt-4">
+      {/* <div className="flex-shrink-0 px-2 mt-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -185,7 +186,7 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
