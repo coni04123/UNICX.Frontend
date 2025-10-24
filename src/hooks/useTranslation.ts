@@ -10,28 +10,47 @@ import pt from '@/messages/pt.json';
 import fr from '@/messages/fr.json';
 import de from '@/messages/de.json';
 
-const translations = {
+type Language = 'en' | 'es' | 'pt' | 'fr' | 'de';
+type TranslationData = typeof en;
+
+// For now, use English translations as fallback for all languages
+const translations: Record<Language, TranslationData> = {
   en,
-  es,
-  pt,
-  fr,
-  de,
+  es: en,  // TODO: Replace with actual Spanish translations
+  pt: en,  // TODO: Replace with actual Portuguese translations
+  fr: en,  // TODO: Replace with actual French translations
+  de: en,  // TODO: Replace with actual German translations
 };
 
-export type TranslationNamespace = keyof typeof en;
+export type TranslationNamespace = keyof TranslationData;
+type TranslationKey<N extends TranslationNamespace> = keyof TranslationData[N];
 
 export function useTranslation(namespace: TranslationNamespace) {
   const { language } = useLanguage();
 
-  const t = useCallback((key: string): string => {
+  const t = useCallback(<T extends Record<string, unknown> = Record<string, string>>(
+    key: string,
+    params?: T
+  ): string => {
     const keys = key.split('.');
-    let value: any = translations[language][namespace];
+    let value = translations[language as Language][namespace];
     
     for (const k of keys) {
-      value = value?.[k];
+      value = value?.[k as keyof typeof value];
+    }
+
+    if (typeof value !== 'string') {
+      console.warn(`Translation not found for key: ${key} in namespace: ${namespace}`);
+      return key;
+    }
+
+    if (params) {
+      return Object.entries(params).reduce((acc: string, [paramKey, paramValue]) => {
+        return acc.replace(new RegExp(`{${paramKey}}`, 'g'), String(paramValue));
+      }, value);
     }
     
-    return value || key;
+    return value;
   }, [language, namespace]);
 
   return t;

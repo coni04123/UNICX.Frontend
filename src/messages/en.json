@@ -245,7 +245,7 @@
       "noData": "No Health Data",
       "healthy": "Healthy",
       "blocked": "Account Blocked",
-      "failureCount": "Failed {{count}}x",
+      "failureCount": "Failed {count}x",
       "lastCheck": "Last Check",
       "nextCheck": "Next Check",
       "successRate": "Success Rate",

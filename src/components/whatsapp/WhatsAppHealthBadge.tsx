@@ -44,11 +44,11 @@ export default function WhatsAppHealthBadge({
     );
   }
 
-  const getStatusColor = () => {
+  const getStatusColor = (): 'default' | 'destructive' | 'secondary' | 'outline' => {
     if (healthStatus.alertTriggered) return 'destructive';
     if (healthStatus.lastStatus === 'failed') return 'destructive';
-    if (healthStatus.lastStatus === 'warning') return 'warning';
-    return 'success';
+    if (healthStatus.lastStatus === 'warning') return 'secondary';
+    return 'default';
   };
 
   const getStatusIcon = () => {
@@ -69,7 +69,7 @@ export default function WhatsAppHealthBadge({
       return t('health.blocked');
     }
     if (healthStatus.consecutiveFailures > 0) {
-      return t('health.failureCount', { count: healthStatus.consecutiveFailures });
+      return t('health.failureCount');
     }
     return t('health.healthy');
   };
